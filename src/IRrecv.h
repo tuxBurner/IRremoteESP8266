@@ -17,7 +17,11 @@
 // Constants
 const uint16_t kHeader = 2;        // Usual nr. of header entries.
 const uint16_t kFooter = 2;        // Usual nr. of footer (stop bits) entries.
+#ifndef ESP32_RMT
 const uint16_t kStartOffset = 1;   // Usual rawbuf entry to start from.
+#else
+const uint16_t kStartOffset = 0;   // Usual rawbuf entry to start from.
+#endif
 #define MS_TO_USEC(x) ((x) * 1000U)  // Convert milli-Seconds to micro-Seconds.
 // Marks tend to be 100us too long, and spaces 100us too short
 // when received due to sensor lag.
@@ -34,7 +38,11 @@ const uint8_t kSpaceState = 4;
 const uint8_t kStopState = 5;
 const uint8_t kTolerance = 25;   // default percent tolerance in measurements.
 const uint8_t kUseDefTol = 255;  // Indicate to use the class default tolerance.
+#ifndef ESP32_RMT
 const uint16_t kRawTick = 2;     // Capture tick to uSec factor.
+#else
+const uint16_t kRawTick = 1;     // Capture tick to uSec factor.
+#endif
 #define RAWTICK kRawTick  // Deprecated. For legacy user code support only.
 // How long (ms) before we give up wait for more data?
 // Don't exceed kMaxTimeoutMs without a good reason.
@@ -53,6 +61,7 @@ const uint32_t kFnvPrime32 = 16777619UL;
 const uint32_t kFnvBasis32 = 2166136261UL;
 
 // Which of the ESP32 timers to use by default. (0-3)
+// TODO RMT: check if needed
 const uint8_t kDefaultESP32Timer = 3;
 
 #if DECODE_AC
@@ -71,6 +80,7 @@ typedef struct {
   uint8_t rcvstate;  // state machine
   uint16_t timer;    // state timer, counts 50uS ticks.
   uint16_t bufsize;  // max. nr. of entries in the capture buffer.
+  // TODO RMT: check if needed
   uint16_t *rawbuf;  // raw data
   // uint16_t is used for rawlen as it saves 3 bytes of iram in the interrupt
   // handler. Don't ask why, I don't know. It just does.
@@ -157,7 +167,12 @@ class IRrecv {
   irparams_t *irparams_save;
   uint8_t _tolerance;
 #if defined(ESP32)
-  uint8_t _timer_num;
+  #ifndef ESP32_RMT
+  uint8_t _timer_num;  
+  #else
+  rmt_config_t _configRx;
+  RingbufHandle_t _rb;
+  #endif
 #endif  // defined(ESP32)
 #if DECODE_HASH
   uint16_t _unknown_threshold;

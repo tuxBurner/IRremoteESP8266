@@ -52,6 +52,10 @@
 #include <string>
 #endif  // UNIT_TEST
 
+#ifdef ESP32_RMT
+#include <driver/rmt.h>
+#endif
+
 // Library Version
 #define _IRREMOTEESP8266_VERSION_ "2.8.0"
 
