@@ -13,7 +13,9 @@
 #include <algorithm>
 #include "IRrecv.h"
 #include "IRsend.h"
+#ifndef ESP32_RMT
 #include "IRtimer.h"
+#endif //ESP32_RMT
 #include "IRutils.h"
 
 // Constants
@@ -44,6 +46,8 @@ const uint16_t kJvcMinGap = kJvcMinGapTicks * kJvcTick;
 /// @param[in] repeat The number of times the command is to be repeated.
 /// @see http://www.sbprojects.net/knowledge/ir/jvc.php
 void IRsend::sendJVC(uint64_t data, uint16_t nbits, uint16_t repeat) {
+  // TODO RMT: SEND THIS TO !
+  #ifndef ESP32_RMT 
   // Set 38kHz IR carrier frequency & a 1/3 (33%) duty cycle.
   enableIROut(38, 33);
 
@@ -67,6 +71,7 @@ void IRsend::sendJVC(uint64_t data, uint16_t nbits, uint16_t repeat) {
     if (elapsed < kJvcRptLength) space(kJvcRptLength - elapsed);
     usecs.reset();
   }
+  #endif
 }
 
 /// Calculate the raw JVC data based on address and command.

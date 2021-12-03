@@ -21,7 +21,9 @@
 #include <algorithm>
 #include "IRrecv.h"
 #include "IRsend.h"
+#ifndef ESP32_RMT
 #include "IRtimer.h"
+#endif //ESP32_RMT
 #include "IRutils.h"
 
 // Constants
@@ -60,6 +62,8 @@ const int16_t kSpace = 1;
 /// @todo Testing of the RC-5X components.
 void IRsend::sendRC5(const uint64_t data, uint16_t nbits,
                      const uint16_t repeat) {
+  // TODO RMT: SEND THIS TO !
+  #ifndef ESP32_RMT                        
   if (nbits > sizeof(data) * 8) return;  // We can't send something that big.
   bool skipSpace = true;
   bool field_bit = true;
@@ -104,6 +108,7 @@ void IRsend::sendRC5(const uint64_t data, uint16_t nbits,
     // Footer
     space(std::max(kRc5MinGap, kRc5MinCommandLength - usecTimer.elapsed()));
   }
+  #endif
 }
 
 /// Encode a Philips RC-5 data message.

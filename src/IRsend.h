@@ -795,6 +795,13 @@ class IRsend {
   uint16_t IRpin;
   int8_t periodOffset;
   uint8_t _dutycycle;
+
+  #ifdef ESP32_RMT 
+  uint16_t *_sendRawbuf;
+  uint16_t _rawBufCounter = 0;
+  rmt_config_t _configTx;
+  #endif
+
   bool modulation;
   uint32_t calcUSecPeriod(uint32_t hz, bool use_offset = true);
 #if SEND_SONY

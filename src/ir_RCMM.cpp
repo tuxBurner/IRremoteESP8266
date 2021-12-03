@@ -10,7 +10,9 @@
 #include <algorithm>
 #include "IRrecv.h"
 #include "IRsend.h"
+#ifndef ESP32_RMT
 #include "IRtimer.h"
+#endif //ESP32_RMT
 #include "IRutils.h"
 
 // Constants
@@ -44,6 +46,8 @@ const uint16_t kRcmmExcess = 50;
 /// @param[in] nbits The number of bits of message to be sent.
 /// @param[in] repeat The number of times the command is to be repeated.
 void IRsend::sendRCMM(uint64_t data, uint16_t nbits, uint16_t repeat) {
+  // TODO RMT: SEND THIS TO !
+  #ifndef ESP32_RMT 
   // Set 36kHz IR carrier frequency & a 1/3 (33%) duty cycle.
   enableIROut(36, 33);
   IRtimer usecs = IRtimer();
@@ -81,6 +85,7 @@ void IRsend::sendRCMM(uint64_t data, uint16_t nbits, uint16_t repeat) {
     // start or kRcmmMinGap usecs.
     space(std::max(kRcmmRptLength - usecs.elapsed(), kRcmmMinGap));
   }
+  #endif
 }
 #endif  // SEND_RCMM
 

@@ -615,7 +615,9 @@ bool resumed = false;  // Flag indicating if we have resumed.
       results->command = 0;
       results->repeat = false;
       // TODO RMT: bufsize ? could we not just count until we reach 0 in duration0 || 1 ?
-      results->rawbuf = new uint16_t[params.bufsize];
+      //results->rawbuf = new uint16_t[params.bufsize];
+      // length / 2 because we have always a duration 0 and 1
+      results->rawbuf = new uint16_t[length / 2];
 
       //results->rawbuf = items;
       results->rawlen = length;
