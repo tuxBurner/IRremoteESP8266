@@ -32,6 +32,7 @@ const int8_t kPeriodOffset = -2;
 // Calculated on ESP8266 Wemos D1 mini using v2.4.1 with v2.4.0 ESP core @ 40MHz
 const int8_t kPeriodOffset = -5;
 #endif  // (defined(ESP8266) && F_CPU == 160000000L)
+
 const uint8_t kDutyDefault = 50;  // Percentage
 const uint8_t kDutyMax = 100;     // Percentage
 // delayMicroseconds() is only accurate to 16383us.
@@ -39,6 +40,7 @@ const uint8_t kDutyMax = 100;     // Percentage
 const uint16_t kMaxAccurateUsecDelay = 16383;
 //  Usecs to wait between messages we don't know the proper gap time.
 const uint32_t kDefaultMessageGap = 100000;
+
 
 /// Enumerators and Structures for the Common A/C API.
 namespace stdAc {
@@ -796,11 +798,11 @@ class IRsend {
   int8_t periodOffset;
   uint8_t _dutycycle;
 
-  #ifdef ESP32_RMT 
+#ifdef ESP32_RMT 
   uint16_t *_sendRawbuf;
   uint16_t _rawBufCounter = 0;
   rmt_config_t _configTx;
-  #endif
+#endif
 
   bool modulation;
   uint32_t calcUSecPeriod(uint32_t hz, bool use_offset = true);

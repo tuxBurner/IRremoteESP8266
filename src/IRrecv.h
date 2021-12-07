@@ -21,7 +21,10 @@ const uint16_t kFooter = 2;        // Usual nr. of footer (stop bits) entries.
 const uint16_t kStartOffset = 1;   // Usual rawbuf entry to start from.
 #else
 const uint16_t kStartOffset = 0;   // Usual rawbuf entry to start from.
-#endif
+const rmt_channel_t recvRmtChannel = RMT_CHANNEL_3; // rmt channel for receiving ir signals
+const uint8_t recvRmtMemBlockNum = 1; // how many mem blocks to use for receiving
+const TickType_t recvRmtTicksToWait = 100; // how many ticks to wait for reading rmt to buffer
+#endif // ESP32_RMT
 #define MS_TO_USEC(x) ((x) * 1000U)  // Convert milli-Seconds to micro-Seconds.
 // Marks tend to be 100us too long, and spaces 100us too short
 // when received due to sensor lag.
@@ -167,12 +170,12 @@ class IRrecv {
   irparams_t *irparams_save;
   uint8_t _tolerance;
 #if defined(ESP32)
-  #ifndef ESP32_RMT
+#ifndef ESP32_RMT
   uint8_t _timer_num;  
-  #else
+#else
   rmt_config_t _configRx;
   RingbufHandle_t _rb;
-  #endif
+#endif // ESP32_RMT
 #endif  // defined(ESP32)
 #if DECODE_HASH
   uint16_t _unknown_threshold;
@@ -182,7 +185,9 @@ class IRrecv {
 #endif  // UNIT_TEST
   // These are called by decode
   uint8_t _validTolerance(const uint8_t percentage);
+#ifndef ESP32_RMT
   void copyIrParams(volatile irparams_t *src, irparams_t *dst);
+#endif // ESP32_RMT 
   uint16_t compare(const uint16_t oldval, const uint16_t newval);
   uint32_t ticksLow(const uint32_t usecs,
                     const uint8_t tolerance = kUseDefTol,

@@ -130,8 +130,7 @@ using _IRrecv::timer;
 #endif  // UNIT_TEST
 
 namespace _IRrecv {  // Namespace extension
-// TODO RMT: check if needed
-#if defined(ESP32)
+#if defined(ESP32) and !defined(ESP32_RMT)
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 #endif  // ESP32
 volatile irparams_t params;
@@ -139,7 +138,7 @@ irparams_t *params_save;  // A copy of the interrupt state while decoding.
 }  // namespace _IRrecv
 
 // TODO RMT: check if needed
-#if defined(ESP32)
+#if defined(ESP32)  and !defined(ESP32_RMT)
 using _IRrecv::mux;
 #endif  // ESP32
 using _IRrecv::params;
@@ -254,10 +253,10 @@ static void USE_IRAM_ATTR gpio_intr() {
 IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
                const uint8_t timeout, const bool save_buffer,
                const uint8_t timer_num) {
-  #ifndef ESP32_RMT                 
+#ifndef ESP32_RMT                 
   // There are only 4 timers. 0 to 3.
   _timer_num = std::min(timer_num, (uint8_t)3);
-  #endif  
+#endif  // ESP32_RMT
 #else  // ESP32
 /// @cond IGNORE
 /// Class constructor
@@ -342,7 +341,7 @@ void IRrecv::enableIRIn(const bool pullup) {
 #endif  // UNIT_TEST
   }
 #if defined(ESP32)
-  #ifndef ESP32_RMT 
+#ifndef ESP32_RMT 
   // Initialise the ESP32 timer.
   // 80MHz / 80 = 1 uSec granularity.
   timer = timerBegin(_timer_num, 80, true);
@@ -350,13 +349,13 @@ void IRrecv::enableIRIn(const bool pullup) {
   timerAlarmWrite(timer, MS_TO_USEC(params.timeout), ONCE);
   // Note: Interrupt needs to be attached before it can be enabled or disabled.
   timerAttachInterrupt(timer, &read_timeout, true);
-  #else
+#else
   //RMT_DEFAULT_CONFIG_RX();
   _configRx.rmt_mode = RMT_MODE_RX;
   // TODO RMT: Make Channel Come from config ?
-  _configRx.channel = RMT_CHANNEL_3;
-  _configRx.gpio_num = GPIO_NUM_15;//params.recvpin;
-  _configRx.mem_block_num = 1; // 1 ? was default, make it configable
+  _configRx.channel = recvRmtChannel;
+  _configRx.gpio_num = (gpio_num_t) params.recvpin;
+  _configRx.mem_block_num = recvRmtMemBlockNum; // 1 ? was default, make it configable
   // Enables the filter for signals to ignore
   _configRx.rx_config.filter_en = true;
   // TODO RMT: CHECK HOW THIS IS HANDELD BEFORE IN crudeNoiseFilter FUNCTION
@@ -368,9 +367,9 @@ void IRrecv::enableIRIn(const bool pullup) {
 
   ESP_ERROR_CHECK(rmt_config(&_configRx));
   ESP_ERROR_CHECK(rmt_driver_install(_configRx.channel, 1000, 0));
-  rmt_rx_start(RMT_CHANNEL_3, 1);
-  rmt_get_ringbuf_handle(RMT_CHANNEL_3, &(this->_rb));
-  #endif
+  rmt_rx_start(recvRmtChannel, 1);
+  rmt_get_ringbuf_handle(recvRmtChannel, &(this->_rb));
+#endif // ESP32_RMT
 #endif  // ESP32
 
   // Initialise state machine variables
@@ -384,9 +383,9 @@ void IRrecv::enableIRIn(const bool pullup) {
                  NULL);
 #endif  // ESP8266
   // Attach Interrupt
-  #ifndef ESP32_RMT 
+#ifndef ESP32_RMT 
   attachInterrupt(params.recvpin, gpio_intr, CHANGE);
-  #endif
+#endif  // ESP32_RMT
 #endif  // UNIT_TEST
 }
 
@@ -418,13 +417,12 @@ void IRrecv::resume(void) {
   params.rcvstate = kIdleState;
   params.rawlen = 0;
   params.overflow = false;
-#if defined(ESP32)
-#ifndef ESP32_RMT 
+#if defined(ESP32)  && !defined(ESP32_RMT)
   timerAlarmDisable(timer);
-#endif  
 #endif  // ESP32
 }
 
+#ifndef ESP32_RMT
 /// Make a copy of the interrupt state & buffer data.
 /// Needed because irparams is marked as volatile, thus memcpy() isn't allowed.
 /// Only call this when you know the interrupt handlers won't modify anything.
@@ -451,6 +449,7 @@ void IRrecv::copyIrParams(volatile irparams_t *src, irparams_t *dst) {
   // Copy the rawbuf
   for (uint16_t i = 0; i < dst->bufsize; i++) dst->rawbuf[i] = src->rawbuf[i];
 }
+#endif // ESP32_RMT
 
 /// Obtain the maximum number of entries possible in the capture buffer.
 /// i.e. It's size.
@@ -603,46 +602,43 @@ bool resumed = false;  // Flag indicating if we have resumed.
 #else  
   rmt_item32_t *items = NULL;
   size_t length = 0;
-  //while(this->_rb) {  
-    items = (rmt_item32_t *) xRingbufferReceive(this->_rb, &length, portMAX_DELAY);
-    if(items) {
-      ESP_LOGE("TEST", "Received items on rmt rx lenght: %d", length);
-      //TODO RMT: COPIED FROM ABOVE MAY NOT BE DUPLICATED
-      results->decode_type = UNKNOWN;
-      results->bits = 0;
-      results->value = 0;
-      results->address = 0;
-      results->command = 0;
-      results->repeat = false;
-      // TODO RMT: bufsize ? could we not just count until we reach 0 in duration0 || 1 ?
-      //results->rawbuf = new uint16_t[params.bufsize];
-      // length / 2 because we have always a duration 0 and 1
-      results->rawbuf = new uint16_t[length / 2];
+  
+  items = (rmt_item32_t *) xRingbufferReceive(this->_rb, &length, recvRmtTicksToWait);
+  if(items) {
+    
+    //TODO RMT: COPIED FROM ABOVE MAY NOT BE DUPLICATED
+    results->decode_type = UNKNOWN;
+    results->bits = 0;
+    results->value = 0;
+    results->address = 0;
+    results->command = 0;
+    results->repeat = false;
+    // TODO RMT: bufsize ? could we not just count until we reach 0 in duration0 || 1 ?
+    // length / 2 because we have always a duration 0 and 1
+    results->rawbuf = new uint16_t[length / 2];
+    results->rawlen = length;
+    //TODO RMT: SURE ? ALWAYS FALSE ?
+    results->overflow = false;
+    length /= 4; // one RMT = 4 Bytes d0 d1 l0 l1      
+    for(size_t i=0; i < (length); i++) {        
+      //ESP_LOGE("TEST","[i: %d] val: %d l0: %d l1: %d d0: %d d1 %d", i, items[i].val,items[i].level0, items[i].level1, items[i].duration0, items[i].duration1);        
+      results->rawbuf[i * 2] = items[i].duration0;
+      results->rawbuf[i * 2 + 1] = items[i].duration1;                
+    }      
+    resumed = true;       
+    //after parsing the data, return spaces to ringbuffer.
+    vRingbufferReturnItem(this->_rb, (void *) items);       
+  } else {
+    return false;
+  }
 
-      //results->rawbuf = items;
-      results->rawlen = length;
-      //TODO RMT: SURE ? ALWAYS FALSE ?
-      results->overflow = false;
-      length /= 4; // one RMT = 4 Bytes d0 d1 l0 l1      
-      for(size_t i=0; i < (length); i++) {        
-        //ESP_LOGE("TEST","[i: %d] val: %d l0: %d l1: %d d0: %d d1 %d", i, items[i].val,items[i].level0, items[i].level1, items[i].duration0, items[i].duration1);        
-        results->rawbuf[i * 2] = items[i].duration0;
-        results->rawbuf[i * 2 + 1] = items[i].duration1;                
-      }      
-      resumed = true;       
-      //after parsing the data, return spaces to ringbuffer.
-       vRingbufferReturnItem(this->_rb, (void *) items);       
-    }
-
-  //}
-#endif // ESP32_RMT
-  ESP_LOGE("TEST","kStartOffset: %d", kStartOffset);
+  
+#endif // ESP32_RMT  
   // Keep looking for protocols until we've run out of entries to skip or we
   // find a valid protocol message.
   for (uint16_t offset = kStartOffset;
        offset <= (max_skip * 2) + kStartOffset;
-       offset += 2) {
-         ESP_LOGE("TEST","offset: %d", offset);
+       offset += 2) {         
 #if DECODE_AIWA_RC_T501
     DPRINTLN("Attempting Aiwa RC T501 decode");
     // Try decodeAiwaRCT501() before decodeSanyoLC7461() & decodeNEC()
