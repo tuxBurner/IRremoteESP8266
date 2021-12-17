@@ -318,6 +318,13 @@
 #define SEND_COOLIX            _IR_ENABLE_DEFAULT_
 #endif  // SEND_COOLIX
 
+#ifndef DECODE_COOLIX48
+#define DECODE_COOLIX48        _IR_ENABLE_DEFAULT_
+#endif  // DECODE_COOLIX48
+#ifndef SEND_COOLIX48
+#define SEND_COOLIX48          _IR_ENABLE_DEFAULT_
+#endif  // SEND_COOLIX48
+
 #ifndef DECODE_GLOBALCACHE
 #define DECODE_GLOBALCACHE     false  // Not applicable.
 #endif  // DECODE_GLOBALCACHE
@@ -979,8 +986,9 @@ enum decode_type_t {
   ARRIS,
   RHOSS,
   AIRTON,
+  COOLIX48,  // 110
   // Add new entries before this one, and update it to point to the last entry.
-  kLastDecodeType = AIRTON,
+  kLastDecodeType = COOLIX48,
 };
 
 // Message lengths & required repeat values
@@ -1002,6 +1010,7 @@ const uint16_t kArgoBits = kArgoStateLength * 8;
 const uint16_t kArgoDefaultRepeat = kNoRepeat;
 const uint16_t kArrisBits = 32;
 const uint16_t kCoolixBits = 24;
+const uint16_t kCoolix48Bits = kCoolixBits * 2;
 const uint16_t kCoolixDefaultRepeat = kSingleRepeat;
 const uint16_t kCarrierAcBits = 32;
 const uint16_t kCarrierAcMinRepeat = kNoRepeat;

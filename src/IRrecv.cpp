@@ -774,9 +774,9 @@ bool resumed = false;  // Flag indicating if we have resumed.
     if (decodeSharp(results, offset)) return true;
 #endif
 #if DECODE_COOLIX
-    DPRINTLN("Attempting Coolix decode");
+    DPRINTLN("Attempting Coolix 24-bit decode");
     if (decodeCOOLIX(results, offset)) return true;
-#endif
+#endif  // DECODE_COOLIX
 #if DECODE_NIKAI
     DPRINTLN("Attempting Nikai decode");
     if (decodeNikai(results, offset)) return true;
@@ -1126,6 +1126,10 @@ bool resumed = false;  // Flag indicating if we have resumed.
     DPRINTLN("Attempting Airton decode");
     if (decodeAirton(results, offset)) return true;
 #endif  // DECODE_AIRTON
+#if DECODE_COOLIX48
+    DPRINTLN("Attempting Coolix 48-bit decode");
+    if (decodeCoolix48(results, offset)) return true;
+#endif  // DECODE_COOLIX48
   // Typically new protocols are added above this line.
   }
 #if DECODE_HASH
@@ -1158,7 +1162,7 @@ uint32_t IRrecv::ticksLow(const uint32_t usecs, const uint8_t tolerance,
   // max() used to ensure the result can't drop below 0 before the cast.
   return ((uint32_t)std::max(
       (int32_t)(usecs * (1.0 - _validTolerance(tolerance) / 100.0) - delta),
-      0));
+      (int32_t)0));
 }
 
 /// Calculate the upper bound of the nr. of ticks.
@@ -1241,7 +1245,8 @@ bool IRrecv::matchAtLeast(uint32_t measured, uint32_t desired,
   // We really should never get a value of 0, except as the last value
   // in the buffer. If that is the case, then assume infinity and return true.
   if (measured == 0) return true;
-  return measured >= ticksLow(std::min(desired, MS_TO_USEC(params.timeout)),
+  return measured >= ticksLow(std::min(desired,
+                                       (uint32_t)MS_TO_USEC(params.timeout)),
                               tolerance, delta);
 }
 
