@@ -17,7 +17,7 @@
 // Constants
 const uint16_t kHeader = 2;        // Usual nr. of header entries.
 const uint16_t kFooter = 2;        // Usual nr. of footer (stop bits) entries.
-#ifndef ESP32_RMT
+#if !defined(ESP32_RMT)
 const uint16_t kStartOffset = 1;   // Usual rawbuf entry to start from.
 #else
 const uint16_t kStartOffset = 0;   // Usual rawbuf entry to start from.
@@ -35,17 +35,17 @@ const uint64_t kRepeat = UINT64_MAX;
 const uint16_t kUnknownThreshold = 6;
 
 // receiver states
+const uint8_t kTolerance = 25;   // default percent tolerance in measurements.
+const uint8_t kUseDefTol = 255;  // Indicate to use the class default tolerance.
+#if !defined(ESP32_RMT)
 const uint8_t kIdleState = 2;
 const uint8_t kMarkState = 3;
 const uint8_t kSpaceState = 4;
 const uint8_t kStopState = 5;
-const uint8_t kTolerance = 25;   // default percent tolerance in measurements.
-const uint8_t kUseDefTol = 255;  // Indicate to use the class default tolerance.
-#ifndef ESP32_RMT
 const uint16_t kRawTick = 2;     // Capture tick to uSec factor.
 #else
 const uint16_t kRawTick = 1;     // Capture tick to uSec factor.
-#endif
+#endif // ESP32_RMT
 #define RAWTICK kRawTick  // Deprecated. For legacy user code support only.
 // How long (ms) before we give up wait for more data?
 // Don't exceed kMaxTimeoutMs without a good reason.
@@ -63,9 +63,10 @@ const uint16_t kMaxTimeoutMs = kRawTick * (UINT16_MAX / MS_TO_USEC(1));
 const uint32_t kFnvPrime32 = 16777619UL;
 const uint32_t kFnvBasis32 = 2166136261UL;
 
+#if !defined(ESP32_RMT)
 // Which of the ESP32 timers to use by default. (0-3)
-// TODO RMT: check if needed
 const uint8_t kDefaultESP32Timer = 3;
+#endif // ESP32_RMT
 
 #if DECODE_AC
 // Hitachi AC is the current largest state size.
@@ -80,15 +81,16 @@ const uint16_t kStateSizeMax = sizeof(uint64_t);
 /// Information for the interrupt handler
 typedef struct {
   uint8_t recvpin;   // pin for IR data from detector
+#if !defined(ESP32_RMT)  
   uint8_t rcvstate;  // state machine
-  uint16_t timer;    // state timer, counts 50uS ticks.
-  uint16_t bufsize;  // max. nr. of entries in the capture buffer.
-  // TODO RMT: check if needed
+  uint16_t timer;    // state timer, counts 50uS ticks. 
+  uint16_t bufsize;  // max. nr. of entries in the capture buffer.  
   uint16_t *rawbuf;  // raw data
   // uint16_t is used for rawlen as it saves 3 bytes of iram in the interrupt
   // handler. Don't ask why, I don't know. It just does.
   uint16_t rawlen;   // counter of entries in rawbuf.
-  uint8_t overflow;  // Buffer overflow indicator.
+  uint8_t overflow;  // Buffer overflow indicator.  
+#endif  // ESP32_RMT      
   uint8_t timeout;   // Nr. of milliSeconds before we give up.
 } irparams_t;
 
@@ -126,15 +128,19 @@ class decode_results {
 /// Class for receiving IR messages.
 class IRrecv {
  public:
-#if defined(ESP32)
+#if defined(ESP32) && !defined(ESP32_RMT)
   explicit IRrecv(const uint16_t recvpin, const uint16_t bufsize = kRawBuf,
                   const uint8_t timeout = kTimeoutMs,
                   const bool save_buffer = false,
                   const uint8_t timer_num = kDefaultESP32Timer);  // Constructor
+#elif defined(ESP32_RMT)
+  explicit IRrecv(const uint16_t recvpin,
+                  const uint8_t timeout = kTimeoutMs);  // Constructor
 #else  // ESP32
   explicit IRrecv(const uint16_t recvpin, const uint16_t bufsize = kRawBuf,
                   const uint8_t timeout = kTimeoutMs,
-                  const bool save_buffer = false);                // Constructor
+                  const bool save_buffer = false,
+                  const uint8_t timer_num = kDefaultESP32Timer);                // Constructor
 #endif  // ESP32
   ~IRrecv(void);                                                  // Destructor
   void setTolerance(const uint8_t percent = kTolerance);
@@ -143,8 +149,12 @@ class IRrecv {
               uint8_t max_skip = 0, uint16_t noise_floor = 0);
   void enableIRIn(const bool pullup = false);
   void disableIRIn(void);
+
+#if !defined(ESP32_RMT)  
   void resume(void);
   uint16_t getBufSize(void);
+#endif // ESP32_RMT
+
 #if DECODE_HASH
   void setUnknownThreshold(const uint16_t length);
 #endif
@@ -291,7 +301,10 @@ class IRrecv {
                            const int16_t excess = kMarkExcess,
                            const bool MSBfirst = true,
                            const bool GEThomas = true);
+
+#if defined(ENABLE_NOISE_FILTER_OPTION) && !defined(ESP32_RMT)
   void crudeNoiseFilter(decode_results *results, const uint16_t floor = 0);
+#endif  
   bool decodeHash(decode_results *results);
 #if DECODE_VOLTAS
   bool decodeVoltas(decode_results *results,

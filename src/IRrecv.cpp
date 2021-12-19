@@ -34,8 +34,7 @@ extern "C" {
 #define USE_IRAM_ATTR ICACHE_RAM_ATTR
 #endif  // IRAM_ATTR
 #endif  // ESP8266
-#if defined(ESP32)
-// TODO: RMT CHECK IF NEEDED
+#if defined(ESP32) && !defined(ESP32_RMT)
 #define USE_IRAM_ATTR IRAM_ATTR
 #endif  // ESP32
 #endif  // USE_IRAM_ATTR
@@ -134,7 +133,9 @@ namespace _IRrecv {  // Namespace extension
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 #endif  // ESP32
 volatile irparams_t params;
+#if !defined(ESP32_RMT)
 irparams_t *params_save;  // A copy of the interrupt state while decoding.
+#endif // ESP32_RMT
 }  // namespace _IRrecv
 
 // TODO RMT: check if needed
@@ -142,7 +143,10 @@ irparams_t *params_save;  // A copy of the interrupt state while decoding.
 using _IRrecv::mux;
 #endif  // ESP32
 using _IRrecv::params;
+
+#if !defined(ESP32_RMT)
 using _IRrecv::params_save;
+#endif // ESP32_RMT
 
 #ifndef UNIT_TEST
 #ifndef ESP32_RMT 
@@ -249,7 +253,7 @@ static void USE_IRAM_ATTR gpio_intr() {
 /// @param[in] save_buffer Use a second (save) buffer to decode from.
 ///   (Default: false)
 /// @param[in] timer_num Nr. of the ESP32 timer to use (0 to 3) (ESP32 Only)
-#if defined(ESP32)
+#if defined(ESP32) && !defined(ESP32_RMT)
 IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
                const uint8_t timeout, const bool save_buffer,
                const uint8_t timer_num) {
@@ -257,6 +261,15 @@ IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
   // There are only 4 timers. 0 to 3.
   _timer_num = std::min(timer_num, (uint8_t)3);
 #endif  // ESP32_RMT
+#elif defined(ESP32_RMT)
+/// Class constructor
+/// Args:
+/// @param[in] recvpin The GPIO pin the IR receiver module's data pin is
+///   connected to.
+/// @param[in] timeout Nr. of milli-Seconds of no signal before we stop
+///   capturing data. (Default: kTimeoutMs)
+IRrecv::IRrecv(const uint16_t recvpin,
+               const uint8_t timeout) {
 #else  // ESP32
 /// @cond IGNORE
 /// Class constructor
@@ -274,10 +287,11 @@ IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
 /// @endcond
 #endif  // ESP32
   params.recvpin = recvpin;
-  params.bufsize = bufsize;
   // Ensure we are going to be able to store all possible values in the
   // capture buffer.
   params.timeout = std::min(timeout, (uint8_t)kMaxTimeoutMs);
+#ifndef ESP32_RMT
+  params.bufsize = bufsize;  
   params.rawbuf = new uint16_t[bufsize];
   if (params.rawbuf == NULL) {
     DPRINTLN(
@@ -303,10 +317,12 @@ IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
   } else {
     params_save = NULL;
   }
+#endif // ESP32_RMT  
+
 #if DECODE_HASH
   _unknown_threshold = kUnknownThreshold;
 #endif  // DECODE_HASH
-  _tolerance = kTolerance;
+  _tolerance = kTolerance;  
 }
 
 /// Class destructor
@@ -320,11 +336,14 @@ IRrecv::~IRrecv(void) {
   if (timer != NULL) timerEnd(timer);  // Cleanup the ESP32 timeout timer.
 #endif //  ESP32_RMT 
 #endif  // ESP32
+
+#if !defined(ESP32_RMT)
   delete[] params.rawbuf;
   if (params_save != NULL) {
     delete[] params_save->rawbuf;
     delete params_save;
   }
+#endif  
 }
 
 /// Set up and (re)start the IR capture mechanism.
@@ -372,8 +391,10 @@ void IRrecv::enableIRIn(const bool pullup) {
 #endif // ESP32_RMT
 #endif  // ESP32
 
+#if !defined(ESP32_RMT)
   // Initialise state machine variables
   resume();
+#endif // ESP32_RMT  
 
 #ifndef UNIT_TEST
 #if defined(ESP8266)
@@ -409,6 +430,7 @@ void IRrecv::disableIRIn(void) {
 #endif  // UNIT_TEST
 }
 
+#if !defined(ESP32_RMT)  
 /// Resume collection of received IR data.
 /// @note This is required if `decode()` is successful and `save_buffer` was
 ///   not set when the class was instanciated.
@@ -417,12 +439,11 @@ void IRrecv::resume(void) {
   params.rcvstate = kIdleState;
   params.rawlen = 0;
   params.overflow = false;
-#if defined(ESP32)  && !defined(ESP32_RMT)
+#if defined(ESP32)
   timerAlarmDisable(timer);
-#endif  // ESP32
+#endif // ESP32
 }
 
-#ifndef ESP32_RMT
 /// Make a copy of the interrupt state & buffer data.
 /// Needed because irparams is marked as volatile, thus memcpy() isn't allowed.
 /// Only call this when you know the interrupt handlers won't modify anything.
@@ -449,12 +470,12 @@ void IRrecv::copyIrParams(volatile irparams_t *src, irparams_t *dst) {
   // Copy the rawbuf
   for (uint16_t i = 0; i < dst->bufsize; i++) dst->rawbuf[i] = src->rawbuf[i];
 }
-#endif // ESP32_RMT
 
 /// Obtain the maximum number of entries possible in the capture buffer.
 /// i.e. It's size.
 /// @return The size of the buffer that is in use by the object.
 uint16_t IRrecv::getBufSize(void) { return params.bufsize; }
+#endif //ESP32_RMT
 
 #if DECODE_HASH
 /// Set the minimum length we will consider for reporting UNKNOWN message types.
@@ -547,8 +568,9 @@ void IRrecv::crudeNoiseFilter(decode_results *results, const uint16_t floor) {
 bool IRrecv::decode(decode_results *results, irparams_t *save,
                     uint8_t max_skip, uint16_t noise_floor) {
 
-bool resumed = false;  // Flag indicating if we have resumed.
-#ifndef ESP32_RMT                      
+
+#if !defined(ESP32_RMT)
+  bool resumed = false;  // Flag indicating if we have resumed.
   // Proceed only if an IR message been received.
 #ifndef UNIT_TEST
   if (params.rcvstate != kStopState) return false;
@@ -624,8 +646,7 @@ bool resumed = false;  // Flag indicating if we have resumed.
       //ESP_LOGE("TEST","[i: %d] val: %d l0: %d l1: %d d0: %d d1 %d", i, items[i].val,items[i].level0, items[i].level1, items[i].duration0, items[i].duration1);        
       results->rawbuf[i * 2] = items[i].duration0;
       results->rawbuf[i * 2 + 1] = items[i].duration1;                
-    }      
-    resumed = true;       
+    }          
     //after parsing the data, return spaces to ringbuffer.
     vRingbufferReturnItem(this->_rb, (void *) items);       
   } else {
@@ -774,9 +795,9 @@ bool resumed = false;  // Flag indicating if we have resumed.
     if (decodeSharp(results, offset)) return true;
 #endif
 #if DECODE_COOLIX
-    DPRINTLN("Attempting Coolix 24-bit decode");
+    DPRINTLN("Attempting Coolix decode");
     if (decodeCOOLIX(results, offset)) return true;
-#endif  // DECODE_COOLIX
+#endif
 #if DECODE_NIKAI
     DPRINTLN("Attempting Nikai decode");
     if (decodeNikai(results, offset)) return true;
@@ -1126,10 +1147,6 @@ bool resumed = false;  // Flag indicating if we have resumed.
     DPRINTLN("Attempting Airton decode");
     if (decodeAirton(results, offset)) return true;
 #endif  // DECODE_AIRTON
-#if DECODE_COOLIX48
-    DPRINTLN("Attempting Coolix 48-bit decode");
-    if (decodeCoolix48(results, offset)) return true;
-#endif  // DECODE_COOLIX48
   // Typically new protocols are added above this line.
   }
 #if DECODE_HASH
@@ -1140,9 +1157,12 @@ bool resumed = false;  // Flag indicating if we have resumed.
     return true;
   }
 #endif  // DECODE_HASH
+
+#if !defined(ESP32_RMT)
   // Throw away and start over
   if (!resumed)  // Check if we have already resumed.
     resume();
+#endif // ESP32_RMT
   return false;
 }
 
@@ -1162,7 +1182,7 @@ uint32_t IRrecv::ticksLow(const uint32_t usecs, const uint8_t tolerance,
   // max() used to ensure the result can't drop below 0 before the cast.
   return ((uint32_t)std::max(
       (int32_t)(usecs * (1.0 - _validTolerance(tolerance) / 100.0) - delta),
-      (int32_t)0));
+      0));
 }
 
 /// Calculate the upper bound of the nr. of ticks.
@@ -1229,6 +1249,7 @@ bool IRrecv::matchAtLeast(uint32_t measured, uint32_t desired,
   DPRINT(" [min(");
   DPRINT(ticksLow(desired, tolerance, delta));
   DPRINT(", ");
+  
   DPRINT(ticksLow(MS_TO_USEC(params.timeout), tolerance, delta));
   DPRINTLN(")]");
 #ifdef UNIT_TEST
@@ -1245,8 +1266,7 @@ bool IRrecv::matchAtLeast(uint32_t measured, uint32_t desired,
   // We really should never get a value of 0, except as the last value
   // in the buffer. If that is the case, then assume infinity and return true.
   if (measured == 0) return true;
-  return measured >= ticksLow(std::min(desired,
-                                       (uint32_t)MS_TO_USEC(params.timeout)),
+  return measured >= ticksLow(std::min(desired, MS_TO_USEC(params.timeout)),
                               tolerance, delta);
 }
 
