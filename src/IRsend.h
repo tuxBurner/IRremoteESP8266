@@ -41,6 +41,11 @@ const uint16_t kMaxAccurateUsecDelay = 16383;
 //  Usecs to wait between messages we don't know the proper gap time.
 const uint32_t kDefaultMessageGap = 100000;
 
+#if defined(ESP32_RMT)
+const rmt_channel_t sendRmtChannel = RMT_CHANNEL_2; // rmt channel for sending ir signals
+const uint8_t sendRmtMemBlockNum = 1; // how many mem blocks to use for sending
+#endif
+
 
 /// Enumerators and Structures for the Common A/C API.
 namespace stdAc {
@@ -213,7 +218,9 @@ class IRsend {
                   bool use_modulation = true);
   void begin();
   void enableIROut(uint32_t freq, uint8_t duty = kDutyDefault);
+  #if !defined(ESP32_RMT)
   VIRTUAL void _delayMicroseconds(uint32_t usec);
+  #endif // ESP32_RMT
   VIRTUAL uint16_t mark(uint16_t usec);
   VIRTUAL void space(uint32_t usec);
   int8_t calibrate(uint16_t hz = 38000U);
@@ -786,10 +793,12 @@ class IRsend {
 #define LOW 0x0
 #endif
 #endif  // UNIT_TEST
+#if !defined(ESP32_RMT)
   uint8_t outputOn;
   uint8_t outputOff;
   VIRTUAL void ledOff();
   VIRTUAL void ledOn();
+#endif // ESP32_RMT  
 #ifndef UNIT_TEST
 
  private:
@@ -806,10 +815,10 @@ class IRsend {
   uint16_t *_sendRawbuf;
   uint16_t _rawBufCounter = 0;
   rmt_config_t _configTx;
-#endif
-
+#endif // ESP32_RMT    
   bool modulation;
   uint32_t calcUSecPeriod(uint32_t hz, bool use_offset = true);
+
 #if SEND_SONY
   void _sendSony(const uint64_t data, const uint16_t nbits,
                  const uint16_t repeat, const uint16_t freq);

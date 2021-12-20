@@ -138,7 +138,6 @@ irparams_t *params_save;  // A copy of the interrupt state while decoding.
 #endif // ESP32_RMT
 }  // namespace _IRrecv
 
-// TODO RMT: check if needed
 #if defined(ESP32)  and !defined(ESP32_RMT)
 using _IRrecv::mux;
 #endif  // ESP32
@@ -268,8 +267,22 @@ IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
 ///   connected to.
 /// @param[in] timeout Nr. of milli-Seconds of no signal before we stop
 ///   capturing data. (Default: kTimeoutMs)
+/// @param[in] rmtChannel Which rmt channel to use. (Default: kRecvRmtChannel)
+/// @param[in] rmtMemBlockNum How many rmt mem Blocks to use. 
+///   (Default: kRecvRmtMemBlockNum)
+/// @param[in] rmtTicksToWait How many ticks to block for checking for data. 
+///   (Default: kRecvRmtTicksToWait)
+/// @param[in] rmtFilterShortToIgnore Short lenght of pulses to ignore. 
+///   (Default: kRmtFilterShortToIgnore)
+/// @param[in] rmtFilterLongToIgnore Long lenght of pulses to ignore. 
+///   (Default: kRmtFilterLongToIgnore)
 IRrecv::IRrecv(const uint16_t recvpin,
-               const uint8_t timeout) {
+               const uint8_t timeout,
+               const rmt_channel_t rmtChannel,
+               const uint8_t rmtMemBlockNum,
+               const TickType_t rmtTicksToWait,
+               const uint8_t rmtFilterShortToIgnore,                  
+               const uint16_t rmtFilterLongToIgnore) {
 #else  // ESP32
 /// @cond IGNORE
 /// Class constructor
@@ -290,7 +303,7 @@ IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
   // Ensure we are going to be able to store all possible values in the
   // capture buffer.
   params.timeout = std::min(timeout, (uint8_t)kMaxTimeoutMs);
-#ifndef ESP32_RMT
+#if !defined(ESP32_RMT)
   params.bufsize = bufsize;  
   params.rawbuf = new uint16_t[bufsize];
   if (params.rawbuf == NULL) {
@@ -317,6 +330,12 @@ IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
   } else {
     params_save = NULL;
   }
+#else
+  params.rmtChannel = rmtChannel;
+  params.rmtMemBlockNum = rmtMemBlockNum;
+  params.rmtTicksToWait = rmtTicksToWait;
+  params.rmtFilterShortToIgnore = rmtFilterShortToIgnore;
+  params.rmtFilterLongToIgnore = rmtFilterLongToIgnore;
 #endif // ESP32_RMT  
 
 #if DECODE_HASH
@@ -368,26 +387,23 @@ void IRrecv::enableIRIn(const bool pullup) {
   timerAlarmWrite(timer, MS_TO_USEC(params.timeout), ONCE);
   // Note: Interrupt needs to be attached before it can be enabled or disabled.
   timerAttachInterrupt(timer, &read_timeout, true);
-#else
-  //RMT_DEFAULT_CONFIG_RX();
-  _configRx.rmt_mode = RMT_MODE_RX;
-  // TODO RMT: Make Channel Come from config ?
-  _configRx.channel = recvRmtChannel;
+#else  
+  _configRx.rmt_mode = RMT_MODE_RX;  
+  _configRx.channel = params.rmtChannel;
   _configRx.gpio_num = (gpio_num_t) params.recvpin;
-  _configRx.mem_block_num = recvRmtMemBlockNum; // 1 ? was default, make it configable
+  _configRx.mem_block_num = params.rmtMemBlockNum; // 1 ? was default, make it configable
   // Enables the filter for signals to ignore
-  _configRx.rx_config.filter_en = true;
-  // TODO RMT: CHECK HOW THIS IS HANDELD BEFORE IN crudeNoiseFilter FUNCTION
+  _configRx.rx_config.filter_en = true;  
   // Pulses shorter than this will be ignored 
-  _configRx.rx_config.filter_ticks_thresh = 100;
+  _configRx.rx_config.filter_ticks_thresh = params.rmtFilterShortToIgnore;
   // Pulses longer than this will be ignored
-  _configRx.rx_config.idle_threshold = 12000;
+  _configRx.rx_config.idle_threshold = params.rmtFilterLongToIgnore;
   _configRx.clk_div = 80; // 80MHx / 80 = 1MHz 0r 1uS per count
 
   ESP_ERROR_CHECK(rmt_config(&_configRx));
   ESP_ERROR_CHECK(rmt_driver_install(_configRx.channel, 1000, 0));
-  rmt_rx_start(recvRmtChannel, 1);
-  rmt_get_ringbuf_handle(recvRmtChannel, &(this->_rb));
+  rmt_rx_start(params.rmtChannel, 1);
+  rmt_get_ringbuf_handle(params.rmtChannel, &(this->_rb));
 #endif // ESP32_RMT
 #endif  // ESP32
 
@@ -625,21 +641,17 @@ bool IRrecv::decode(decode_results *results, irparams_t *save,
   rmt_item32_t *items = NULL;
   size_t length = 0;
   
-  items = (rmt_item32_t *) xRingbufferReceive(this->_rb, &length, recvRmtTicksToWait);
+  items = (rmt_item32_t *) xRingbufferReceive(this->_rb, &length, params.rmtTicksToWait);
   if(items) {
-    
-    //TODO RMT: COPIED FROM ABOVE MAY NOT BE DUPLICATED
     results->decode_type = UNKNOWN;
     results->bits = 0;
     results->value = 0;
     results->address = 0;
     results->command = 0;
-    results->repeat = false;
-    // TODO RMT: bufsize ? could we not just count until we reach 0 in duration0 || 1 ?
+    results->repeat = false;    
     // length / 2 because we have always a duration 0 and 1
     results->rawbuf = new uint16_t[length / 2];
-    results->rawlen = length;
-    //TODO RMT: SURE ? ALWAYS FALSE ?
+    results->rawlen = length;    
     results->overflow = false;
     length /= 4; // one RMT = 4 Bytes d0 d1 l0 l1      
     for(size_t i=0; i < (length); i++) {        
