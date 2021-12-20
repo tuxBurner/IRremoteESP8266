@@ -138,8 +138,7 @@ void IRsend::enableIROut(uint32_t freq, uint8_t duty) {
   offTimePeriod = period - onTimePeriod;
 #else 
   _configTx.tx_config.carrier_freq_hz = freq*1000;  
-  ESP_ERROR_CHECK(rmt_config(&_configTx));
-  ESP_ERROR_CHECK(rmt_driver_install(_configTx.channel, 1000, 0));
+  ESP_ERROR_CHECK(rmt_config(&_configTx));  
 #endif // ESP32_RMT  
 }
 
