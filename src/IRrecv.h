@@ -25,7 +25,7 @@ const rmt_channel_t kRecvRmtChannel = RMT_CHANNEL_3; // rmt channel for receivin
 const uint8_t kRecvRmtMemBlockNum = 1; // how many mem blocks to use for receiving
 const TickType_t kRecvRmtTicksToWait = 100; // how many ticks to wait for reading rmt to buffer
 const uint8_t kRmtFilterShortToIgnore = 100; // pulses that short are ignored
-const uint16_t kRmtFilterLongToIgnore = 1200; // pulses that are longer are ignored
+const uint16_t kRmtFilterLongToIgnore = 12000; // pulses that are longer are ignored
 #endif // ESP32_RMT
 #define MS_TO_USEC(x) ((x) * 1000U)  // Convert milli-Seconds to micro-Seconds.
 // Marks tend to be 100us too long, and spaces 100us too short
