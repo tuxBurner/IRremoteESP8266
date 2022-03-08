@@ -56,7 +56,8 @@ using irutils::checkInvertedBytePairs;
 using irutils::invertBytePairs;
 using irutils::minsToString;
 
-#if (SEND_HITACHI_AC || SEND_HITACHI_AC2 || SEND_HITACHI_AC344)
+#if (SEND_HITACHI_AC || SEND_HITACHI_AC2 || SEND_HITACHI_AC264 || \
+     SEND_HITACHI_AC344)
 /// Send a Hitachi 28-byte/224-bit A/C formatted message. (HITACHI_AC)
 /// Status: STABLE / Working.
 /// @param[in] data The message to be sent.
@@ -68,13 +69,20 @@ void IRsend::sendHitachiAC(const unsigned char data[], const uint16_t nbytes,
   if (nbytes < kHitachiAcStateLength)
     return;  // Not enough bytes to send a proper message.
 
-  const bool MSBfirst = (nbytes == kHitachiAc344StateLength) ? false : true;
+  bool MSBfirst = true;
+  switch (nbytes) {
+    case kHitachiAc264StateLength:
+    case kHitachiAc344StateLength:
+      MSBfirst = false;
+  }
+
   sendGeneric(kHitachiAcHdrMark, kHitachiAcHdrSpace, kHitachiAcBitMark,
               kHitachiAcOneSpace, kHitachiAcBitMark, kHitachiAcZeroSpace,
               kHitachiAcBitMark, kHitachiAcMinGap, data, nbytes, 38, MSBfirst,
               repeat, 50);
 }
-#endif  // (SEND_HITACHI_AC || SEND_HITACHI_AC2 || SEND_HITACHI_AC344)
+#endif  // (SEND_HITACHI_AC || SEND_HITACHI_AC2 || SEND_HITACHI_AC264 ||
+        //  SEND_HITACHI_AC344)
 
 #if SEND_HITACHI_AC1
 /// Send a Hitachi 13 byte/224-bit A/C formatted message. (HITACHI_AC1)
@@ -82,7 +90,7 @@ void IRsend::sendHitachiAC(const unsigned char data[], const uint16_t nbytes,
 /// @param[in] data The message to be sent.
 /// @param[in] nbytes The number of bytes of message to be sent.
 /// @param[in] repeat The number of times the command is to be repeated.
-/// @note Basically the same as sendHitatchiAC() except different size & header.
+/// @note Basically the same as sendHitachiAC() except different size & header.
 /// @see https://github.com/crankyoldgit/IRremoteESP8266/issues/453
 void IRsend::sendHitachiAC1(const unsigned char data[], const uint16_t nbytes,
                             const uint16_t repeat) {
@@ -97,7 +105,7 @@ void IRsend::sendHitachiAC1(const unsigned char data[], const uint16_t nbytes,
 
 #if SEND_HITACHI_AC2
 /// Send a Hitachi 53 byte/424-bit A/C formatted message. (HITACHI_AC2)
-///   Basically the same as sendHitatchiAC() except different size.
+///   Basically the same as sendHitachiAC() except different size.
 /// Status: STABLE / Expected to work.
 /// @param[in] data The message to be sent.
 /// @param[in] nbytes The number of bytes of message to be sent.
@@ -112,7 +120,7 @@ void IRsend::sendHitachiAC2(const unsigned char data[], const uint16_t nbytes,
 
 #if SEND_HITACHI_AC344
 /// Send a Hitachi A/C 43-byte/344-bit message. (HITACHI_AC344)
-///  Basically the same as sendHitatchiAC() except different size.
+///  Basically the same as sendHitachiAC() except different size.
 /// Status: Beta / Probably works.
 /// @param[in] data An array of bytes containing the IR command.
 /// @param[in] nbytes Nr. of bytes of data in the array.
@@ -373,7 +381,7 @@ stdAc::fanspeed_t IRHitachiAc::toCommonFanSpeed(const uint8_t speed) {
 /// Convert the current internal state into its stdAc::state_t equivalent.
 /// @return The stdAc equivalent of the native settings.
 stdAc::state_t IRHitachiAc::toCommon(void) const {
-  stdAc::state_t result;
+  stdAc::state_t result{};
   result.protocol = decode_type_t::HITACHI_AC;
   result.model = -1;  // No models used.
   result.power = _.Power;
@@ -773,7 +781,7 @@ stdAc::fanspeed_t IRHitachiAc1::toCommonFanSpeed(const uint8_t speed) {
 /// Convert the current internal state into its stdAc::state_t equivalent.
 /// @return The stdAc equivalent of the native settings.
 stdAc::state_t IRHitachiAc1::toCommon(void) const {
-  stdAc::state_t result;
+  stdAc::state_t result{};
   result.protocol = decode_type_t::HITACHI_AC1;
   result.model = getModel();
   result.power = _.Power;
@@ -827,7 +835,7 @@ String IRHitachiAc1::toString(void) const {
 }
 
 #if (DECODE_HITACHI_AC || DECODE_HITACHI_AC1 || DECODE_HITACHI_AC2 || \
-     DECODE_HITACHI_AC344)
+     DECODE_HITACHI_AC344 || DECODE_HITACHI_AC264)
 /// Decode the supplied Hitachi A/C message.
 /// Status: STABLE / Expected to work.
 /// @param[in,out] results Ptr to the data to decode & where to store the result
@@ -835,7 +843,7 @@ String IRHitachiAc1::toString(void) const {
 ///   raw data. Typically/Defaults to kStartOffset.
 /// @param[in] nbits The number of data bits to expect.
 ///   Typically kHitachiAcBits, kHitachiAc1Bits, kHitachiAc2Bits,
-///   kHitachiAc344Bits
+///   kHitachiAc344Bits, kHitachiAc264Bits
 /// @param[in] strict Flag indicating if we should perform strict matching.
 /// @param[in] MSBfirst Is the data per byte stored in MSB First (true) or
 ///   LSB First order(false)?
@@ -843,6 +851,7 @@ String IRHitachiAc1::toString(void) const {
 /// @see https://github.com/crankyoldgit/IRremoteESP8266/issues/417
 /// @see https://github.com/crankyoldgit/IRremoteESP8266/issues/453
 /// @see https://github.com/crankyoldgit/IRremoteESP8266/issues/1134
+/// @see https://github.com/crankyoldgit/IRremoteESP8266/issues/1729
 bool IRrecv::decodeHitachiAC(decode_results *results, uint16_t offset,
                              const uint16_t nbits, const bool strict,
                              const bool MSBfirst) {
@@ -853,6 +862,7 @@ bool IRrecv::decodeHitachiAC(decode_results *results, uint16_t offset,
       case kHitachiAcBits:
       case kHitachiAc1Bits:
       case kHitachiAc2Bits:
+      case kHitachiAc264Bits:
       case kHitachiAc344Bits:
         break;  // Okay to continue.
       default:
@@ -879,16 +889,20 @@ bool IRrecv::decodeHitachiAC(decode_results *results, uint16_t offset,
 
   // Compliance
   if (strict) {
-    if (nbits / 8 == kHitachiAcStateLength &&
-        !IRHitachiAc::validChecksum(results->state, kHitachiAcStateLength))
-      return false;
-    if (nbits / 8 == kHitachiAc1StateLength &&
-       !IRHitachiAc1::validChecksum(results->state, kHitachiAc1StateLength))
-      return false;
-    if (nbits / 8 == kHitachiAc344StateLength &&
-        !IRHitachiAc3::hasInvertedStates(results->state,
-                                         kHitachiAc344StateLength))
-      return false;
+    const uint16_t nbytes = nbits / 8;
+    switch (nbytes) {
+      case kHitachiAcStateLength:
+        if (!IRHitachiAc::validChecksum(results->state, nbytes)) return false;
+        break;
+      case kHitachiAc1StateLength:
+        if (!IRHitachiAc1::validChecksum(results->state, nbytes)) return false;
+        break;
+      case kHitachiAc264StateLength:
+      case kHitachiAc344StateLength:
+        if (!IRHitachiAc3::hasInvertedStates(results->state, nbytes))
+          return false;
+        break;
+    }
   }
 
   // Success
@@ -898,6 +912,9 @@ bool IRrecv::decodeHitachiAC(decode_results *results, uint16_t offset,
       break;
     case kHitachiAc2Bits:
       results->decode_type = decode_type_t::HITACHI_AC2;
+      break;
+    case kHitachiAc264Bits:
+      results->decode_type = decode_type_t::HITACHI_AC264;
       break;
     case kHitachiAc344Bits:
       results->decode_type = decode_type_t::HITACHI_AC344;
@@ -913,7 +930,7 @@ bool IRrecv::decodeHitachiAC(decode_results *results, uint16_t offset,
   return true;
 }
 #endif  // (DECODE_HITACHI_AC || DECODE_HITACHI_AC1 || DECODE_HITACHI_AC2 ||
-        //  DECODE_HITACHI_AC344)
+        //  DECODE_HITACHI_AC344 || DECODE_HITACHI_AC264)
 
 #if SEND_HITACHI_AC424
 /// Send a Hitachi 53-byte/424-bit A/C formatted message. (HITACHI_AC424)
@@ -1008,6 +1025,7 @@ void IRHitachiAc424::stateReset(void) {
   _.raw[3]  = 0x40;
   _.raw[5]  = 0xFF;
   _.raw[7]  = 0xCC;
+  _.raw[27] = 0xE1;
   _.raw[33] = 0x80;
   _.raw[35] = 0x03;
   _.raw[37] = 0x01;
@@ -1055,15 +1073,13 @@ void IRHitachiAc424::send(const uint16_t repeat) {
 
 /// Get the value of the current power setting.
 /// @return true, the setting is on. false, the setting is off.
-bool IRHitachiAc424::getPower(void) const {
-  return _.Power == kHitachiAc424PowerOn;
-}
+bool IRHitachiAc424::getPower(void) const { return _.Power; }
 
 /// Change the power setting.
 /// @param[in] on true, the setting is on. false, the setting is off.
 void IRHitachiAc424::setPower(const bool on) {
+  _.Power = on;
   setButton(kHitachiAc424ButtonPowerMode);
-  _.Power = (on ? kHitachiAc424PowerOn : kHitachiAc424PowerOff);
 }
 
 /// Change the power setting to On.
@@ -1203,7 +1219,7 @@ uint8_t IRHitachiAc424::convertMode(const stdAc::opmode_t mode) {
 /// Convert a stdAc::fanspeed_t enum into it's native speed.
 /// @param[in] speed The enum to be converted.
 /// @return The native equivalent of the enum.
-uint8_t IRHitachiAc424::convertFan(const stdAc::fanspeed_t speed) {
+uint8_t IRHitachiAc424::convertFan(const stdAc::fanspeed_t speed) const {
   switch (speed) {
     case stdAc::fanspeed_t::kMin:    return kHitachiAc424FanMin;
     case stdAc::fanspeed_t::kLow:    return kHitachiAc424FanLow;
@@ -1230,7 +1246,7 @@ stdAc::opmode_t IRHitachiAc424::toCommonMode(const uint8_t mode) {
 /// Convert a native fan speed into its stdAc equivalent.
 /// @param[in] speed The native setting to be converted.
 /// @return The stdAc equivalent of the native setting.
-stdAc::fanspeed_t IRHitachiAc424::toCommonFanSpeed(const uint8_t speed) {
+stdAc::fanspeed_t IRHitachiAc424::toCommonFanSpeed(const uint8_t speed) const {
   switch (speed) {
     case kHitachiAc424FanMax:    return stdAc::fanspeed_t::kMax;
     case kHitachiAc424FanHigh:   return stdAc::fanspeed_t::kHigh;
@@ -1244,7 +1260,7 @@ stdAc::fanspeed_t IRHitachiAc424::toCommonFanSpeed(const uint8_t speed) {
 /// Convert the current internal state into its stdAc::state_t equivalent.
 /// @return The stdAc equivalent of the native settings.
 stdAc::state_t IRHitachiAc424::toCommon(void) const {
-  stdAc::state_t result;
+  stdAc::state_t result{};
   result.protocol = decode_type_t::HITACHI_AC424;
   result.model = -1;  // No models used.
   result.power = getPower();
@@ -1578,3 +1594,113 @@ String IRHitachiAc344::toString(void) const {
   result += ')';
   return result;
 }
+
+
+#if SEND_HITACHI_AC264
+/// Send a Hitachi 33-byte/264-bit A/C message (HITACHI_AC264)
+/// Basically the same as sendHitachiAC() except different size.
+/// Status: STABLE / Reported as working.
+/// @param[in] data An array of bytes containing the IR command.
+/// @param[in] nbytes Nr. of bytes of data in the array.
+/// @param[in] repeat Nr. of times the message is to be repeated. (Default = 0).
+/// @see https://github.com/crankyoldgit/IRremoteESP8266/issues/1729
+void IRsend::sendHitachiAc264(const unsigned char data[], const uint16_t nbytes,
+                              const uint16_t repeat) {
+  if (nbytes < kHitachiAc264StateLength)
+    return;  // Not enough bytes to send a proper message.
+  sendHitachiAC(data, nbytes, repeat);
+}
+#endif  // SEND_HITACHI_AC264
+
+// Class constructor for handling detailed Hitachi_AC344 43 byte A/C messages.
+/// @param[in] pin GPIO to be used when sending.
+/// @param[in] inverted Is the output signal to be inverted?
+/// @param[in] use_modulation Is frequency modulation to be used?
+IRHitachiAc264::IRHitachiAc264(const uint16_t pin, const bool inverted,
+                               const bool use_modulation)
+    : IRHitachiAc424(pin, inverted, use_modulation) { stateReset(); }
+
+/// Reset the internal state to auto fan, cooling, 23° Celsius
+void IRHitachiAc264::stateReset(void) {
+  IRHitachiAc424::stateReset();
+  _.raw[9] = 0x92;
+  _.raw[27] = 0xC1;
+}
+
+#if SEND_HITACHI_AC264
+/// Create and send the IR message to the A/C.
+/// @param[in] repeat Nr. of times to repeat the message.
+void IRHitachiAc264::send(const uint16_t repeat) {
+  _irsend.sendHitachiAc264(getRaw(), kHitachiAc264StateLength, repeat);
+}
+#endif  // SEND_HITACHI_AC264
+
+/// Set the internal state from a valid code for this protocol.
+/// @param[in] new_code A valid code for this protocol.
+/// @param[in] length Size (in bytes) of the code for this protocol.
+void IRHitachiAc264::setRaw(const uint8_t new_code[], const uint16_t length) {
+  memcpy(_.raw, new_code, std::min(length, kHitachiAc264StateLength));
+}
+
+/// Set the speed of the fan.
+/// @param[in] speed The desired setting.
+void IRHitachiAc264::setFan(const uint8_t speed) {
+  switch (speed) {
+    case kHitachiAc264FanMin:
+    case kHitachiAc264FanMedium:
+    case kHitachiAc264FanHigh:
+    case kHitachiAc264FanAuto:
+      _.Fan = speed;
+      break;
+    default:
+      setFan(kHitachiAc264FanAuto);
+  }
+}
+
+/// Convert a stdAc::fanspeed_t enum into it's native speed.
+/// @param[in] speed The enum to be converted.
+/// @return The native equivalent of the enum.
+uint8_t IRHitachiAc264::convertFan(const stdAc::fanspeed_t speed) const {
+  switch (speed) {
+    case stdAc::fanspeed_t::kMin:
+    case stdAc::fanspeed_t::kLow:    return kHitachiAc264FanMin;
+    case stdAc::fanspeed_t::kMedium: return kHitachiAc264FanMedium;
+    case stdAc::fanspeed_t::kHigh:
+    case stdAc::fanspeed_t::kMax:    return kHitachiAc424FanHigh;
+    default:                         return kHitachiAc424FanAuto;
+  }
+}
+
+/// Convert a native fan speed into its stdAc equivalent.
+/// @param[in] speed The native setting to be converted.
+/// @return The stdAc equivalent of the native setting.
+stdAc::fanspeed_t IRHitachiAc264::toCommonFanSpeed(const uint8_t speed) const {
+  switch (speed) {
+    case kHitachiAc264FanHigh:   return stdAc::fanspeed_t::kHigh;
+    case kHitachiAc264FanMedium: return stdAc::fanspeed_t::kMedium;
+    case kHitachiAc264FanMin:    return stdAc::fanspeed_t::kMin;
+    default:                     return stdAc::fanspeed_t::kAuto;
+  }
+}
+
+/// Convert the current internal state into its stdAc::state_t equivalent.
+/// @return The stdAc equivalent of the native settings.
+stdAc::state_t IRHitachiAc264::toCommon(void) const {
+  stdAc::state_t result = IRHitachiAc424::toCommon();
+  result.protocol = decode_type_t::HITACHI_AC264;
+  result.swingv = stdAc::swingv_t::kOff;
+  return result;
+}
+
+/// Convert the internal state into a human readable string.
+/// @return A string containing the settings in human-readable form.
+String IRHitachiAc264::toString(void) const {
+  String result;
+  result.reserve(120);  // Reserve some heap for the string to reduce fragging.
+  result += _toString();
+  return result;
+}
+
+#if DECODE_HITACHI_AC264
+// For Decoding HITACHI_AC264, see `decodeHitachiAC`
+#endif  // DECODE_HITACHI_AC264

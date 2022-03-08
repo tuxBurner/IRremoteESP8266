@@ -102,24 +102,24 @@ enum class swingh_t {
 
 /// Structure to hold a common A/C state.
 struct state_t {
-  decode_type_t protocol;
-  int16_t model;
-  bool power;
-  stdAc::opmode_t mode;
-  float degrees;
-  bool celsius;
-  stdAc::fanspeed_t fanspeed;
-  stdAc::swingv_t swingv;
-  stdAc::swingh_t swingh;
-  bool quiet;
-  bool turbo;
-  bool econo;
-  bool light;
-  bool filter;
-  bool clean;
-  bool beep;
-  int16_t sleep;
-  int16_t clock;
+  decode_type_t protocol = decode_type_t::UNKNOWN;
+  int16_t model = -1;  // `-1` means unused.
+  bool power = false;
+  stdAc::opmode_t mode = stdAc::opmode_t::kOff;
+  float degrees = 25;
+  bool celsius = true;
+  stdAc::fanspeed_t fanspeed = stdAc::fanspeed_t::kAuto;
+  stdAc::swingv_t swingv = stdAc::swingv_t::kOff;
+  stdAc::swingh_t swingh = stdAc::swingh_t::kOff;
+  bool quiet = false;
+  bool turbo = false;
+  bool econo = false;
+  bool light = false;
+  bool filter = false;
+  bool clean = false;
+  bool beep = false;
+  int16_t sleep = -1;  // `-1` means off.
+  int16_t clock = -1;  // `-1` means not set.
 };
 };  // namespace stdAc
 
@@ -179,10 +179,10 @@ enum sharp_ac_remote_model_t {
   A903 = 3,  // 820 too
 };
 
-/// TCL A/C model numbers
+/// TCL (& Teknopoint) A/C model numbers
 enum tcl_ac_remote_model_t {
   TAC09CHSD = 1,
-  GZ055BE1 = 2,
+  GZ055BE1 = 2,  // Also Teknopoint GZ01-BEJ0-000
 };
 
 /// Voltas A/C model numbers
@@ -601,6 +601,11 @@ class IRsend {
                                               // different sizes
                       const uint16_t repeat = kHitachiAcDefaultRepeat);
 #endif  // SEND_HITACHI_AC3
+#if SEND_HITACHI_AC264
+  void sendHitachiAc264(const unsigned char data[],
+                        const uint16_t nbytes = kHitachiAc264StateLength,
+                        const uint16_t repeat = kHitachiAcDefaultRepeat);
+#endif  // SEND_HITACHI_AC264
 #if SEND_HITACHI_AC344
   void sendHitachiAc344(const unsigned char data[],
                         const uint16_t nbytes = kHitachiAc344StateLength,
@@ -764,6 +769,11 @@ class IRsend {
   void sendKelon(const uint64_t data, const uint16_t nbits = kKelonBits,
                  const uint16_t repeat = kNoRepeat);
 #endif  // SEND_KELON
+#if SEND_KELON168
+  void sendKelon168(const unsigned char data[],
+                    const uint16_t nbytes = kKelon168StateLength,
+                    const uint16_t repeat = kNoRepeat);
+#endif  // SEND_KELON168
 #if SEND_BOSE
   void sendBose(const uint64_t data, const uint16_t nbits = kBoseBits,
                 const uint16_t repeat = kNoRepeat);
