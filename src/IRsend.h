@@ -203,6 +203,7 @@ enum lg_ac_remote_model_t {
   AKB75215403,        // (2) LG2 28-bit Protocol
   AKB74955603,        // (3) LG2 28-bit Protocol variant
   AKB73757604,        // (4) LG2 Variant of AKB74955603
+  LG6711A20083V,      // (5) Same as GE6711AR2853M, but only SwingV toggle.
 };
 
 
@@ -606,6 +607,11 @@ class IRsend {
                         const uint16_t nbytes = kHitachiAc264StateLength,
                         const uint16_t repeat = kHitachiAcDefaultRepeat);
 #endif  // SEND_HITACHI_AC264
+#if SEND_HITACHI_AC296
+  void sendHitachiAc296(const unsigned char data[],
+                        const uint16_t nbytes = kHitachiAc296StateLength,
+                        const uint16_t repeat = kHitachiAcDefaultRepeat);
+#endif  // SEND_HITACHI_AC296
 #if SEND_HITACHI_AC344
   void sendHitachiAc344(const unsigned char data[],
                         const uint16_t nbytes = kHitachiAc344StateLength,
