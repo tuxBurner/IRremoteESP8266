@@ -77,7 +77,6 @@ const uint8_t kDefaultESP32Timer = 3;
 #endif // ESP32_RMT
 #endif  // ESP32
 
-
 #if DECODE_AC
 // Hitachi AC is the current largest state size.
 const uint16_t kStateSizeMax = kHitachiAc2StateLength;
@@ -91,22 +90,22 @@ const uint16_t kStateSizeMax = sizeof(uint64_t);
 /// Information for the interrupt handler
 typedef struct {
   uint8_t recvpin;   // pin for IR data from detector
-#if !defined(ESP32_RMT)  
+#if !defined(ESP32_RMT)
   uint8_t rcvstate;  // state machine
-  uint16_t timer;    // state timer, counts 50uS ticks. 
-  uint16_t bufsize;  // max. nr. of entries in the capture buffer.  
+  uint16_t timer;    // state timer, counts 50uS ticks.
+  uint16_t bufsize;  // max. nr. of entries in the capture buffer.
   uint16_t *rawbuf;  // raw data
   // uint16_t is used for rawlen as it saves 3 bytes of iram in the interrupt
   // handler. Don't ask why, I don't know. It just does.
   uint16_t rawlen;   // counter of entries in rawbuf.
-  uint8_t overflow;  // Buffer overflow indicator.  
+  uint8_t overflow;  // Buffer overflow indicator.
 #else
   rmt_channel_t rmtChannel; // rmt channel for receiving ir signals
   uint8_t rmtMemBlockNum; // how many mem blocks to use for receiving
   TickType_t rmtTicksToWait; // how long to wait to read item from channel
-  uint8_t rmtFilterShortToIgnore; // Pulses shorter than this will be ignored 
+  uint8_t rmtFilterShortToIgnore; // Pulses shorter than this will be ignored
   uint16_t rmtFilterLongToIgnore; // Pulses longer than this will be ignored
-#endif  // ESP32_RMT      
+#endif  // ESP32_RMT
   uint8_t timeout;   // Nr. of milliSeconds before we give up.
 } irparams_t;
 
@@ -155,13 +154,12 @@ class IRrecv {
                   const rmt_channel_t rmtChannel = kRecvRmtChannel,
                   const uint8_t rmtMemBlockNum = kRecvRmtMemBlockNum,
                   const TickType_t rmtTicksToWait = kRecvRmtTicksToWait,
-                  const uint8_t rmtFilterShortToIgnore = kRmtFilterShortToIgnore,                  
+                  const uint8_t rmtFilterShortToIgnore = kRmtFilterShortToIgnore,
                   const uint16_t rmtFilterLongToIgnore = kRmtFilterLongToIgnore);
 #else  // ESP32
-  explicit IRrecv(const uint16_t recvpin, const uint16_t bufsize = kRawBuf,
+   explicit IRrecv(const uint16_t recvpin, const uint16_t bufsize = kRawBuf,
                   const uint8_t timeout = kTimeoutMs,
-                  const bool save_buffer = false,
-                  const uint8_t timer_num = kDefaultESP32Timer);                // Constructor
+                  const bool save_buffer = false);                // Constructor
 #endif  // ESP32
   ~IRrecv(void);                                                  // Destructor
   void setTolerance(const uint8_t percent = kTolerance);
@@ -170,8 +168,8 @@ class IRrecv {
               uint8_t max_skip = 0, uint16_t noise_floor = 0);
   void enableIRIn(const bool pullup = false);
   void disableIRIn(void);
-
-#if !defined(ESP32_RMT)  
+#if !defined(ESP32_RMT)
+  void pause(void);
   void resume(void);
   uint16_t getBufSize(void);
 #endif // ESP32_RMT
@@ -202,7 +200,7 @@ class IRrecv {
   uint8_t _tolerance;
 #if defined(ESP32)
 #ifndef ESP32_RMT
-  uint8_t _timer_num;  
+  uint8_t _timer_num;
 #else
   rmt_config_t _configRx;
   RingbufHandle_t _rb;
@@ -218,7 +216,7 @@ class IRrecv {
   uint8_t _validTolerance(const uint8_t percentage);
 #ifndef ESP32_RMT
   void copyIrParams(volatile irparams_t *src, irparams_t *dst);
-#endif // ESP32_RMT 
+#endif // ESP32_RMT
   uint16_t compare(const uint16_t oldval, const uint16_t newval);
   uint32_t ticksLow(const uint32_t usecs,
                     const uint8_t tolerance = kUseDefTol,
@@ -325,7 +323,7 @@ class IRrecv {
 
 #if defined(ENABLE_NOISE_FILTER_OPTION) && !defined(ESP32_RMT)
   void crudeNoiseFilter(decode_results *results, const uint16_t floor = 0);
-#endif  
+#endif
   bool decodeHash(decode_results *results);
 #if DECODE_VOLTAS
   bool decodeVoltas(decode_results *results,
@@ -340,6 +338,9 @@ class IRrecv {
 #if DECODE_ARGO
   bool decodeArgo(decode_results *results, uint16_t offset = kStartOffset,
                   const uint16_t nbits = kArgoBits, const bool strict = true);
+  bool decodeArgoWREM3(decode_results *results, uint16_t offset = kStartOffset,
+                  const uint16_t nbits = kArgo3AcControlStateLength * 8,
+                  const bool strict = true);
 #endif  // DECODE_ARGO
 #if DECODE_ARRIS
   bool decodeArris(decode_results *results, uint16_t offset = kStartOffset,
@@ -372,6 +373,12 @@ class IRrecv {
                        const uint16_t nbits = kSanyoAc88Bits,
                        const bool strict = true);
 #endif  // DECODE_SANYO_AC88
+#if DECODE_SANYO_AC152
+  bool decodeSanyoAc152(decode_results *results,
+                        uint16_t offset = kStartOffset,
+                        const uint16_t nbits = kSanyoAc152Bits,
+                        const bool strict = true);
+#endif  // DECODE_SANYO_AC152
 #if DECODE_MITSUBISHI
   bool decodeMitsubishi(decode_results *results, uint16_t offset = kStartOffset,
                         const uint16_t nbits = kMitsubishiBits,
@@ -554,11 +561,21 @@ class IRrecv {
                      const uint16_t nbits = kDaikin2Bits,
                      const bool strict = true);
 #endif
+#if DECODE_DAIKIN200
+  bool decodeDaikin200(decode_results *results, uint16_t offset = kStartOffset,
+                       const uint16_t nbits = kDaikin200Bits,
+                       const bool strict = true);
+#endif  // DECODE_DAIKIN200
 #if DECODE_DAIKIN216
   bool decodeDaikin216(decode_results *results, uint16_t offset = kStartOffset,
                        const uint16_t nbits = kDaikin216Bits,
                        const bool strict = true);
-#endif
+#endif  // DECODE_DAIKIN216
+#if DECODE_DAIKIN312
+  bool decodeDaikin312(decode_results *results, uint16_t offset = kStartOffset,
+                       const uint16_t nbits = kDaikin312Bits,
+                       const bool strict = true);
+#endif  // DECODE_DAIKIN312
 #if DECODE_TOSHIBA_AC
   bool decodeToshibaAC(decode_results *results, uint16_t offset = kStartOffset,
                        const uint16_t nbits = kToshibaACBits,
@@ -610,24 +627,42 @@ class IRrecv {
                          const uint16_t nbits = kCarrierAc40Bits,
                          const bool strict = true);
 #endif  // DECODE_CARRIER_AC40
+#if DECODE_CARRIER_AC84
+  bool decodeCarrierAC84(decode_results *results,
+                         uint16_t offset = kStartOffset,
+                         const uint16_t nbits = kCarrierAc84Bits,
+                         const bool strict = true);
+#endif  // DECODE_CARRIER_AC84
 #if DECODE_CARRIER_AC64
   bool decodeCarrierAC64(decode_results *results,
                          uint16_t offset = kStartOffset,
                          const uint16_t nbits = kCarrierAc64Bits,
                          const bool strict = true);
 #endif  // DECODE_CARRIER_AC64
+#if DECODE_CARRIER_AC128
+  bool decodeCarrierAC128(decode_results *results,
+                          uint16_t offset = kStartOffset,
+                          const uint16_t nbits = kCarrierAc128Bits,
+                          const bool strict = true);
+#endif  // DECODE_CARRIER_AC128
 #if DECODE_GOODWEATHER
   bool decodeGoodweather(decode_results *results,
                          uint16_t offset = kStartOffset,
                          const uint16_t nbits = kGoodweatherBits,
                          const bool strict = true);
 #endif  // DECODE_GOODWEATHER
+#if DECODE_GORENJE
+  bool decodeGorenje(decode_results *results, uint16_t offset = kStartOffset,
+                     const uint16_t nbits = kGorenjeBits,
+                     const bool strict = true);
+#endif  // DECODE_GORENJE
 #if DECODE_GREE
   bool decodeGree(decode_results *results, uint16_t offset = kStartOffset,
                   const uint16_t nbits = kGreeBits,
                   const bool strict = true);
 #endif
-#if (DECODE_HAIER_AC | DECODE_HAIER_AC_YRW02)
+#if (DECODE_HAIER_AC | DECODE_HAIER_AC_YRW02 || DECODE_HAIER_AC160 || \
+     DECODE_HAIER_AC176)
   bool decodeHaierAC(decode_results *results, uint16_t offset = kStartOffset,
                      const uint16_t nbits = kHaierACBits,
                      const bool strict = true);
@@ -638,6 +673,12 @@ class IRrecv {
                           const uint16_t nbits = kHaierACYRW02Bits,
                           const bool strict = true);
 #endif
+#if DECODE_HAIER_AC160
+  bool decodeHaierAC160(decode_results *results,
+                        uint16_t offset = kStartOffset,
+                        const uint16_t nbits = kHaierAC160Bits,
+                        const bool strict = true);
+#endif  // DECODE_HAIER_AC160
 #if DECODE_HAIER_AC176
   bool decodeHaierAC176(decode_results *results,
                         uint16_t offset = kStartOffset,
@@ -851,6 +892,41 @@ class IRrecv {
                     const uint16_t nbits = kAirtonBits,
                     const bool strict = true);
 #endif  // DECODE_AIRTON
+#if DECODE_TOTO
+  bool decodeToto(decode_results *results, uint16_t offset = kStartOffset,
+                    const uint16_t nbits = kTotoBits,
+                    const bool strict = true);
+#endif  // DECODE_TOTO
+#if DECODE_CLIMABUTLER
+  bool decodeClimaButler(decode_results *results,
+                         uint16_t offset = kStartOffset,
+                         const uint16_t nbits = kClimaButlerBits,
+                         const bool strict = true);
+#endif  // DECODE_CLIMABUTLER
+#if DECODE_TCL96AC
+  bool decodeTcl96Ac(decode_results *results,
+                     uint16_t offset = kStartOffset,
+                     const uint16_t nbits = kTcl96AcBits,
+                     const bool strict = true);
+#endif  // DECODE_TCL96AC
+#if DECODE_BOSCH144
+  bool decodeBosch144(decode_results *results,
+                      uint16_t offset = kStartOffset,
+                      const uint16_t nbits = kBosch144Bits,
+                      const bool strict = true);
+#endif  // DECODE_BOSCH144
+#if DECODE_WOWWEE
+  bool decodeWowwee(decode_results *results,
+                    uint16_t offset = kStartOffset,
+                    const uint16_t nbits = kWowweeBits,
+                    const bool strict = true);
+#endif  // DECODE_WOWWEE
+#if DECODE_YORK
+  bool decodeYork(decode_results *results,
+                  uint16_t kStartOffset,
+                  const uint16_t kYorkBits,
+                  const bool strict = true);
+#endif  // DECODE_YORK
 };
 
 #endif  // IRRECV_H_

@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['lgprotocol_4103',['LGProtocol',['../unionLGProtocol.html',1,'']]]
+  ['kelonprotocol_4521',['KelonProtocol',['../unionKelonProtocol.html',1,'']]],
+  ['kelvinatorprotocol_4522',['KelvinatorProtocol',['../unionKelvinatorProtocol.html',1,'']]]
 ];

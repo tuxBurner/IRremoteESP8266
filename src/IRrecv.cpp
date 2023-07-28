@@ -50,7 +50,7 @@ extern "C" {
 
 // Globals
 #ifndef UNIT_TEST
-#ifndef ESP32_RMT 
+#ifndef ESP32_RMT
 #if defined(ESP8266)
 namespace _IRrecv {
 static ETSTimer timer;
@@ -139,7 +139,7 @@ static hw_timer_t * timer = NULL;
 }  // namespace _IRrecv
 #endif  // ESP32
 using _IRrecv::timer;
-#endif // ESP32_RMT 
+#endif // ESP32_RMT
 #endif  // UNIT_TEST
 
 namespace _IRrecv {  // Namespace extension
@@ -162,7 +162,7 @@ using _IRrecv::params_save;
 #endif // ESP32_RMT
 
 #ifndef UNIT_TEST
-#ifndef ESP32_RMT 
+#ifndef ESP32_RMT
 #if defined(ESP8266)
 /// Interrupt handler for when the timer runs out.
 /// It signals to the library that capturing of IR data has stopped.
@@ -255,7 +255,7 @@ static void USE_IRAM_ATTR gpio_intr() {
 #endif  // _ESP32_IRRECV_TIMER_HACK
 #endif  // ESP32
 }
-#endif // ESP32_RMT 
+#endif // ESP32_RMT
 #endif  // UNIT_TEST
 
 // Start of IRrecv class -------------------
@@ -276,7 +276,7 @@ static void USE_IRAM_ATTR gpio_intr() {
 IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
                const uint8_t timeout, const bool save_buffer,
                const uint8_t timer_num) {
-#ifndef ESP32_RMT                 
+#ifndef ESP32_RMT
   // Ensure we use a valid timer number.
   _timer_num = std::min(timer_num,
                         (uint8_t)(
@@ -294,20 +294,20 @@ IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
 /// @param[in] timeout Nr. of milli-Seconds of no signal before we stop
 ///   capturing data. (Default: kTimeoutMs)
 /// @param[in] rmtChannel Which rmt channel to use. (Default: kRecvRmtChannel)
-/// @param[in] rmtMemBlockNum How many rmt mem Blocks to use. 
+/// @param[in] rmtMemBlockNum How many rmt mem Blocks to use.
 ///   (Default: kRecvRmtMemBlockNum)
-/// @param[in] rmtTicksToWait How many ticks to block for checking for data. 
+/// @param[in] rmtTicksToWait How many ticks to block for checking for data.
 ///   (Default: kRecvRmtTicksToWait)
-/// @param[in] rmtFilterShortToIgnore Short lenght of pulses to ignore. 
+/// @param[in] rmtFilterShortToIgnore Short lenght of pulses to ignore.
 ///   (Default: kRmtFilterShortToIgnore)
-/// @param[in] rmtFilterLongToIgnore Long lenght of pulses to ignore. 
+/// @param[in] rmtFilterLongToIgnore Long lenght of pulses to ignore.
 ///   (Default: kRmtFilterLongToIgnore)
 IRrecv::IRrecv(const uint16_t recvpin,
                const uint8_t timeout,
                const rmt_channel_t rmtChannel,
                const uint8_t rmtMemBlockNum,
                const TickType_t rmtTicksToWait,
-               const uint8_t rmtFilterShortToIgnore,                  
+               const uint8_t rmtFilterShortToIgnore,
                const uint16_t rmtFilterLongToIgnore) {
 #else  // ESP32
 /// @cond IGNORE
@@ -330,7 +330,7 @@ IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
   // capture buffer.
   params.timeout = std::min(timeout, (uint8_t)kMaxTimeoutMs);
 #if !defined(ESP32_RMT)
-  params.bufsize = bufsize;  
+  params.bufsize = bufsize;
   params.rawbuf = new uint16_t[bufsize];
   if (params.rawbuf == NULL) {
     DPRINTLN(
@@ -362,12 +362,12 @@ IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
   params.rmtTicksToWait = rmtTicksToWait;
   params.rmtFilterShortToIgnore = rmtFilterShortToIgnore;
   params.rmtFilterLongToIgnore = rmtFilterLongToIgnore;
-#endif // ESP32_RMT  
+#endif // ESP32_RMT
 
 #if DECODE_HASH
   _unknown_threshold = kUnknownThreshold;
 #endif  // DECODE_HASH
-  _tolerance = kTolerance;  
+  _tolerance = kTolerance;
 }
 
 /// Class destructor
@@ -377,9 +377,9 @@ IRrecv::IRrecv(const uint16_t recvpin, const uint16_t bufsize,
 IRrecv::~IRrecv(void) {
   disableIRIn();
 #if defined(ESP32)
-#ifndef ESP32_RMT 
+#ifndef ESP32_RMT
   if (timer != NULL) timerEnd(timer);  // Cleanup the ESP32 timeout timer.
-#endif //  ESP32_RMT 
+#endif //  ESP32_RMT
 #endif  // ESP32
 
 #if !defined(ESP32_RMT)
@@ -388,7 +388,7 @@ IRrecv::~IRrecv(void) {
     delete[] params_save->rawbuf;
     delete params_save;
   }
-#endif  
+#endif
 }
 
 /// Set up and (re)start the IR capture mechanism.
@@ -405,7 +405,7 @@ void IRrecv::enableIRIn(const bool pullup) {
 #endif  // UNIT_TEST
   }
 #if defined(ESP32)
-#ifndef ESP32_RMT 
+#ifndef ESP32_RMT
   // Initialise the ESP32 timer.
   // 80MHz / 80 = 1 uSec granularity.
   timer = timerBegin(_timer_num, 80, true);
@@ -422,14 +422,14 @@ void IRrecv::enableIRIn(const bool pullup) {
   // Note: EDGE (true) is not supported, use LEVEL (false). Ref: #1713
   // See: https://github.com/espressif/arduino-esp32/blob/caef4006af491130136b219c1205bdcf8f08bf2b/cores/esp32/esp32-hal-timer.c#L224-L227
   timerAttachInterrupt(timer, &read_timeout, false);
-#else  
-  _configRx.rmt_mode = RMT_MODE_RX;  
+#else
+  _configRx.rmt_mode = RMT_MODE_RX;
   _configRx.channel = params.rmtChannel;
   _configRx.gpio_num = (gpio_num_t) params.recvpin;
   _configRx.mem_block_num = params.rmtMemBlockNum; // 1 ? was default, make it configable
   // Enables the filter for signals to ignore
-  _configRx.rx_config.filter_en = true;  
-  // Pulses shorter than this will be ignored 
+  _configRx.rx_config.filter_en = true;
+  // Pulses shorter than this will be ignored
   _configRx.rx_config.filter_ticks_thresh = params.rmtFilterShortToIgnore;
   // Pulses longer than this will be ignored
   _configRx.rx_config.idle_threshold = params.rmtFilterLongToIgnore;
@@ -445,7 +445,7 @@ void IRrecv::enableIRIn(const bool pullup) {
 #if !defined(ESP32_RMT)
   // Initialise state machine variables
   resume();
-#endif // ESP32_RMT  
+#endif // ESP32_RMT
 
 #ifndef UNIT_TEST
 #if defined(ESP8266)
@@ -455,7 +455,7 @@ void IRrecv::enableIRIn(const bool pullup) {
                  NULL);
 #endif  // ESP8266
   // Attach Interrupt
-#ifndef ESP32_RMT 
+#ifndef ESP32_RMT
   attachInterrupt(params.recvpin, gpio_intr, CHANGE);
 #endif  // ESP32_RMT
 #endif  // UNIT_TEST
@@ -470,18 +470,30 @@ void IRrecv::disableIRIn(void) {
   os_timer_disarm(&timer);
 #endif  // ESP8266
 #if defined(ESP32)
-#ifndef ESP32_RMT 
+#ifndef ESP32_RMT
   timerAlarmDisable(timer);
+  timerDetachInterrupt(timer);
   timerEnd(timer);
-#endif // ESP32_RMT   
+#endif // ESP32_RMT
 #endif  // ESP32
-#ifndef ESP32_RMT 
+#ifndef ESP32_RMT
   detachInterrupt(params.recvpin);
-#endif  
+#endif
 #endif  // UNIT_TEST
 }
 
-#if !defined(ESP32_RMT)  
+#if !defined(ESP32_RMT)
+/// Pause collection of received IR data.
+/// @see IRrecv class constructor
+void IRrecv::pause(void) {
+  params.rcvstate = kStopState;
+  params.rawlen = 0;
+  params.overflow = false;
+#if defined(ESP32)
+  gpio_intr_disable((gpio_num_t)params.recvpin);
+#endif  // ESP32
+}
+
 /// Resume collection of received IR data.
 /// @note This is required if `decode()` is successful and `save_buffer` was
 ///   not set when the class was instanciated.
@@ -492,7 +504,9 @@ void IRrecv::resume(void) {
   params.overflow = false;
 #if defined(ESP32)
   timerAlarmDisable(timer);
-#endif // ESP32
+  gpio_intr_enable((gpio_num_t)params.recvpin);
+  gpio_intr_enable((gpio_num_t)params.recvpin);
+#endif  // ESP32
 }
 
 /// Make a copy of the interrupt state & buffer data.
@@ -672,10 +686,10 @@ bool IRrecv::decode(decode_results *results, irparams_t *save,
 #if ENABLE_NOISE_FILTER_OPTION
   crudeNoiseFilter(results, noise_floor);
 #endif  // ENABLE_NOISE_FILTER_OPTION
-#else  
+#else
   rmt_item32_t *items = NULL;
   size_t length = 0;
-  
+
   items = (rmt_item32_t *) xRingbufferReceive(this->_rb, &length, params.rmtTicksToWait);
   if(items) {
     results->decode_type = UNKNOWN;
@@ -683,30 +697,30 @@ bool IRrecv::decode(decode_results *results, irparams_t *save,
     results->value = 0;
     results->address = 0;
     results->command = 0;
-    results->repeat = false;    
+    results->repeat = false;
     // length / 2 because we have always a duration 0 and 1
     results->rawbuf = new uint16_t[length / 2];
-    results->rawlen = length;    
+    results->rawlen = length;
     results->overflow = false;
-    length /= 4; // one RMT = 4 Bytes d0 d1 l0 l1      
-    for(size_t i=0; i < (length); i++) {        
-      //ESP_LOGE("TEST","[i: %d] val: %d l0: %d l1: %d d0: %d d1 %d", i, items[i].val,items[i].level0, items[i].level1, items[i].duration0, items[i].duration1);        
+    length /= 4; // one RMT = 4 Bytes d0 d1 l0 l1
+    for(size_t i=0; i < (length); i++) {
+      //ESP_LOGE("TEST","[i: %d] val: %d l0: %d l1: %d d0: %d d1 %d", i, items[i].val,items[i].level0, items[i].level1, items[i].duration0, items[i].duration1);
       results->rawbuf[i * 2] = items[i].duration0;
-      results->rawbuf[i * 2 + 1] = items[i].duration1;                
-    }          
+      results->rawbuf[i * 2 + 1] = items[i].duration1;
+    }
     //after parsing the data, return spaces to ringbuffer.
-    vRingbufferReturnItem(this->_rb, (void *) items);       
+    vRingbufferReturnItem(this->_rb, (void *) items);
   } else {
     return false;
   }
 
-  
-#endif // ESP32_RMT  
+
+#endif // ESP32_RMT
   // Keep looking for protocols until we've run out of entries to skip or we
   // find a valid protocol message.
   for (uint16_t offset = kStartOffset;
        offset <= (max_skip * 2) + kStartOffset;
-       offset += 2) {         
+       offset += 2) {
 #if DECODE_AIWA_RC_T501
     DPRINTLN("Attempting Aiwa RC T501 decode");
     // Try decodeAiwaRCT501() before decodeSanyoLC7461() & decodeNEC()
@@ -801,9 +815,12 @@ bool IRrecv::decode(decode_results *results, irparams_t *save,
       return true;
 #endif
 #if DECODE_PANASONIC
-    DPRINTLN("Attempting Panasonic decode");
+    DPRINTLN("Attempting Panasonic (48-bit) decode");
     if (decodePanasonic(results, offset)) return true;
-#endif
+    DPRINTLN("Attempting Panasonic (40-bit) decode");
+    if (decodePanasonic(results, offset, kPanasonic40Bits, true,
+                        kPanasonic40Manufacturer)) return true;
+#endif  // DECODE_PANASONIC
 #if DECODE_LG
     DPRINTLN("Attempting LG (28-bit) decode");
     if (decodeLG(results, offset, kLgBits, true)) return true;
@@ -841,10 +858,15 @@ bool IRrecv::decode(decode_results *results, irparams_t *save,
     DPRINTLN("Attempting Sharp decode");
     if (decodeSharp(results, offset)) return true;
 #endif
+#if DECODE_BOSCH144
+    DPRINTLN("Attempting Bosch 144-bit decode");
+    // Bosch is similar to Coolix, so it must be attempted before decodeCOOLIX.
+    if (decodeBosch144(results, offset)) return true;
+#endif  // DECODE_BOSCH144
 #if DECODE_COOLIX
-    DPRINTLN("Attempting Coolix decode");
+    DPRINTLN("Attempting Coolix 24-bit decode");
     if (decodeCOOLIX(results, offset)) return true;
-#endif
+#endif  // DECODE_COOLIX
 #if DECODE_NIKAI
     DPRINTLN("Attempting Nikai decode");
     if (decodeNikai(results, offset)) return true;
@@ -1038,8 +1060,21 @@ bool IRrecv::decode(decode_results *results, irparams_t *save,
       return true;
 #endif
 #if DECODE_ARGO
-    DPRINTLN("Attempting Argo decode");
-    if (decodeArgo(results, offset)) return true;
+  DPRINTLN("Attempting Argo WREM3 decode (AC Control)");
+  if (decodeArgoWREM3(results, offset, kArgo3AcControlStateLength * 8, true))
+    return true;
+  DPRINTLN("Attempting Argo WREM3 decode (iFeel report)");
+  if (decodeArgoWREM3(results, offset, kArgo3iFeelReportStateLength * 8, true))
+    return true;
+  DPRINTLN("Attempting Argo WREM3 decode (Config)");
+  if (decodeArgoWREM3(results, offset, kArgo3ConfigStateLength * 8, true))
+    return true;
+  DPRINTLN("Attempting Argo WREM3 decode (Timer)");
+  if (decodeArgoWREM3(results, offset, kArgo3TimerStateLength * 8, true))
+    return true;
+  DPRINTLN("Attempting Argo WREM2 decode");
+    if (decodeArgo(results, offset, kArgoBits) ||
+        decodeArgo(results, offset, kArgoShortBits, false)) return true;
 #endif  // DECODE_ARGO
 #if DECODE_SHARP_AC
     DPRINTLN("Attempting SHARP_AC decode");
@@ -1210,6 +1245,59 @@ bool IRrecv::decode(decode_results *results, irparams_t *save,
     DPRINTLN("Attempting Airton decode");
     if (decodeAirton(results, offset)) return true;
 #endif  // DECODE_AIRTON
+#if DECODE_COOLIX48
+    DPRINTLN("Attempting Coolix 48-bit decode");
+    if (decodeCoolix48(results, offset)) return true;
+#endif  // DECODE_COOLIX48
+#if DECODE_DAIKIN200
+    DPRINTLN("Attempting Daikin 200-bit decode");
+    if (decodeDaikin200(results, offset)) return true;
+#endif  // DECODE_DAIKIN200
+#if DECODE_HAIER_AC160
+    DPRINTLN("Attempting Haier AC 160 bit decode");
+    if (decodeHaierAC160(results, offset)) return true;
+#endif  // DECODE_HAIER_AC160
+#if DECODE_CARRIER_AC128
+    DPRINTLN("Attempting Carrier AC 128-bit decode");
+    if (decodeCarrierAC128(results, offset)) return true;
+#endif  // DECODE_CARRIER_AC128
+#if DECODE_TOTO
+    DPRINTLN("Attempting Toto 48/24-bit decode");
+    if (decodeToto(results, offset, kTotoLongBits) ||  // Long needs to be first
+        decodeToto(results, offset, kTotoShortBits)) return true;
+#endif  // DECODE_TOTO
+#if DECODE_CLIMABUTLER
+    DPRINTLN("Attempting ClimaButler decode");
+    if (decodeClimaButler(results)) return true;
+#endif  // DECODE_CLIMABUTLER
+#if DECODE_TCL96AC
+    DPRINTLN("Attempting TCL AC 96-bit decode");
+    if (decodeTcl96Ac(results, offset)) return true;
+#endif  // DECODE_TCL96AC
+#if DECODE_SANYO_AC152
+    DPRINTLN("Attempting Sanyo AC 152-bit decode");
+    if (decodeSanyoAc152(results, offset)) return true;
+#endif  // DECODE_SANYO_AC152
+#if DECODE_DAIKIN312
+    DPRINTLN("Attempting Daikin 312-bit decode");
+    if (decodeDaikin312(results, offset)) return true;
+#endif  // DECODE_DAIKIN312
+#if DECODE_GORENJE
+    DPRINTLN("Attempting GORENJE decode");
+    if (decodeGorenje(results, offset)) return true;
+#endif  // DECODE_GORENJE
+#if DECODE_WOWWEE
+    DPRINTLN("Attempting WOWWEE decode");
+    if (decodeWowwee(results, offset)) return true;
+#endif  // DECODE_WOWWEE
+#if DECODE_CARRIER_AC84
+    DPRINTLN("Attempting Carrier A/C 84-bit decode");
+    if (decodeCarrierAC84(results, offset)) return true;
+#endif  // DECODE_CARRIER_AC84
+#if DECODE_YORK
+    DPRINTLN("Attempting York decode");
+    if (decodeYork(results, offset, kYorkBits)) return true;
+#endif  // DECODE_YORK
   // Typically new protocols are added above this line.
   }
 #if DECODE_HASH
@@ -1227,7 +1315,7 @@ bool IRrecv::decode(decode_results *results, irparams_t *save,
     resume();
 #endif // ESP32_RMT
   return false;
-}
+}  // NOLINT(readability/fn_size)
 
 /// Convert the tolerance percentage into something valid.
 /// @param[in] percentage An integer percentage.
@@ -1245,7 +1333,7 @@ uint32_t IRrecv::ticksLow(const uint32_t usecs, const uint8_t tolerance,
   // max() used to ensure the result can't drop below 0 before the cast.
   return ((uint32_t)std::max(
       (int32_t)(usecs * (1.0 - _validTolerance(tolerance) / 100.0) - delta),
-      0));
+      (int32_t)0));
 }
 
 /// Calculate the upper bound of the nr. of ticks.
@@ -1312,7 +1400,7 @@ bool IRrecv::matchAtLeast(uint32_t measured, uint32_t desired,
   DPRINT(" [min(");
   DPRINT(ticksLow(desired, tolerance, delta));
   DPRINT(", ");
-  
+
   DPRINT(ticksLow(MS_TO_USEC(params.timeout), tolerance, delta));
   DPRINTLN(")]");
 #ifdef UNIT_TEST
@@ -1329,7 +1417,8 @@ bool IRrecv::matchAtLeast(uint32_t measured, uint32_t desired,
   // We really should never get a value of 0, except as the last value
   // in the buffer. If that is the case, then assume infinity and return true.
   if (measured == 0) return true;
-  return measured >= ticksLow(std::min(desired, MS_TO_USEC(params.timeout)),
+  return measured >= ticksLow(std::min(desired,
+                                       (uint32_t)MS_TO_USEC(params.timeout)),
                               tolerance, delta);
 }
 
