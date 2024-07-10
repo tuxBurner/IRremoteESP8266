@@ -736,8 +736,10 @@ void IRac::coolix(IRCoolixAC *ac,
       ac->send();
       return;
   }
-  ac->setMode(ac->convertMode(mode));
   ac->setTemp(degrees);
+  // Mode needs to be set after temp as Fan-only uses a special temp.
+  ac->setMode(ac->convertMode(mode));
+  // Fan needs to be set after mode, as setMode can change the fan speed.
   ac->setFan(ac->convertFan(fan));
   // No Filter setting available.
   // No Beep setting available.
@@ -1167,6 +1169,7 @@ void IRac::ecoclim(IREcoclimAc *ac,
 /// @param[in] swingv The vertical swing setting.
 /// @param[in] swingh The horizontal swing setting.
 /// @param[in] iFeel Whether to enable iFeel (remote temp) mode on the A/C unit.
+/// @param[in] quiet Run the device in quiet/silent mode.
 /// @param[in] turbo Run the device in turbo/powerful mode.
 /// @param[in] lighttoggle Should we toggle the LED/Display?
 /// @param[in] clean Turn on the self-cleaning mode. e.g. Mould, dry filters etc
@@ -1175,7 +1178,8 @@ void IRac::electra(IRElectraAc *ac,
                    const float degrees, const float sensorTemp,
                    const stdAc::fanspeed_t fan, const stdAc::swingv_t swingv,
                    const stdAc::swingh_t swingh, const bool iFeel,
-                   const bool turbo, const bool lighttoggle, const bool clean) {
+                   const bool quiet, const bool turbo, const bool lighttoggle,
+                   const bool clean) {
   ac->begin();
   ac->setPower(on);
   ac->setMode(ac->convertMode(mode));
@@ -1186,7 +1190,7 @@ void IRac::electra(IRElectraAc *ac,
   ac->setFan(ac->convertFan(fan));
   ac->setSwingV(swingv != stdAc::swingv_t::kOff);
   ac->setSwingH(swingh != stdAc::swingh_t::kOff);
-  // No Quiet setting available.
+  ac->setQuiet(quiet);
   ac->setTurbo(turbo);
   ac->setLightToggle(lighttoggle);
   // No Econo setting available.
@@ -3223,8 +3227,8 @@ bool IRac::sendAc(const stdAc::state_t desired, const stdAc::state_t *prev) {
     {
       IRElectraAc ac(_pin, _inverted, _modulation);
       electra(&ac, send.power, send.mode, degC, sensorTempC, send.fanspeed,
-              send.swingv, send.swingh, send.iFeel, send.turbo, send.light,
-              send.clean);
+              send.swingv, send.swingh, send.iFeel, send.quiet, send.turbo,
+              send.light, send.clean);
       break;
     }
 #endif  // SEND_ELECTRA_AC
@@ -3275,8 +3279,8 @@ bool IRac::sendAc(const stdAc::state_t desired, const stdAc::state_t *prev) {
     {
       IRHaierAC160 ac(_pin, _inverted, _modulation);
       haier160(&ac, send.power, send.mode, send.celsius, send.degrees,
-               send.fanspeed, send.swingv, send.turbo, send.filter, send.clean,
-               send.light, prev_light, send.sleep);
+               send.fanspeed, send.swingv, send.turbo, send.quiet,
+               send.filter, send.clean, send.light, prev_light, send.sleep);
       break;
     }
 #endif  // SEND_HAIER_AC160
@@ -3286,7 +3290,8 @@ bool IRac::sendAc(const stdAc::state_t desired, const stdAc::state_t *prev) {
       IRHaierAC176 ac(_pin, _inverted, _modulation);
       haier176(&ac, (haier_ac176_remote_model_t)send.model, send.power,
                send.mode, send.celsius, send.degrees, send.fanspeed,
-               send.swingv, send.swingh, send.turbo, send.filter, send.sleep);
+               send.swingv, send.swingh, send.turbo, send.quiet, send.filter,
+               send.sleep);
       break;
     }
 #endif  // SEND_HAIER_AC176
@@ -3296,7 +3301,7 @@ bool IRac::sendAc(const stdAc::state_t desired, const stdAc::state_t *prev) {
       IRHaierACYRW02 ac(_pin, _inverted, _modulation);
       haierYrwo2(&ac, send.power, send.mode, send.celsius, send.degrees,
                  send.fanspeed, send.swingv, send.swingh, send.turbo,
-                 send.filter, send.sleep);
+                 send.quiet, send.filter, send.sleep);
       break;
     }
 #endif  // SEND_HAIER_AC_YRW02
